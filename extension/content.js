@@ -50,20 +50,45 @@
     // 1. Core Page Scraper - yt-dlp native extraction is the ultimate fallback!
     // Since yt-dlp has custom extractors for 1000+ sites (YouTube, Instagram, Facebook),
     // presenting the current page URL is by far the most reliable detection method.
-    // Wrap with top-level window check to avoid background iframes (like auth/ad frames) from cluttering the list
-    if (window === window.top && !DETECTED_VIDEOS.has(pageUrl)) {
+    const isEmbedUrl = pageUrl.includes('youtube.com/embed/') || 
+                       pageUrl.includes('youtube-nocookie.com/embed/') ||
+                       pageUrl.includes('player.vimeo.com/video/');
+
+    if ((window === window.top || isEmbedUrl) && !DETECTED_VIDEOS.has(pageUrl)) {
       DETECTED_VIDEOS.set(pageUrl, true);
       
       let cleanTitle = document.title;
-      if (pageUrl.includes('youtube.com')) cleanTitle = cleanTitle.replace(/ - YouTube$/, '');
-      if (pageUrl.includes('facebook.com')) cleanTitle = cleanTitle.replace(/ \| Facebook$/, '');
-      if (pageUrl.includes('instagram.com')) cleanTitle = cleanTitle.replace(/ • Instagram photos and videos$/, '');
+      let targetUrl = pageUrl;
+      let thumbnail = getPageThumbnail();
+      
+      if (isEmbedUrl) {
+        if (pageUrl.includes('youtube.com') || pageUrl.includes('youtube-nocookie.com')) {
+          const match = pageUrl.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+          if (match) {
+            const videoId = match[1];
+            targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            cleanTitle = `Embedded YouTube Video (${videoId})`;
+          }
+        } else if (pageUrl.includes('vimeo.com')) {
+          const match = pageUrl.match(/\/video\/([0-9]+)/);
+          if (match) {
+            const videoId = match[1];
+            targetUrl = `https://vimeo.com/${videoId}`;
+            cleanTitle = `Embedded Vimeo Video (${videoId})`;
+          }
+        }
+      } else {
+        if (pageUrl.includes('youtube.com')) cleanTitle = cleanTitle.replace(/ - YouTube$/, '');
+        if (pageUrl.includes('facebook.com')) cleanTitle = cleanTitle.replace(/ \| Facebook$/, '');
+        if (pageUrl.includes('instagram.com')) cleanTitle = cleanTitle.replace(/ • Instagram photos and videos$/, '');
+      }
 
-      const platform = getPlatformName(pageUrl);
+      const platform = getPlatformName(targetUrl);
       videos.push({
-        url: pageUrl,
+        url: targetUrl,
         title: cleanTitle || `Current Page (${platform} auto-detect)`,
-        thumbnail: getPageThumbnail(),
+        thumbnail: thumbnail,
         type: platform,
         platform: platform
       });
@@ -90,20 +115,51 @@
       }
     });
 
-    // 3. Scan Embedded Iframes (YouTube, Vimeo, etc.)
+    // 3. Scan Embedded Iframes (YouTube, Vimeo, Vdocipher, Bunny Stream, etc.)
     document.querySelectorAll('iframe').forEach(iframe => {
       try {
-        const src = iframe.src;
-        if (src && (src.includes('youtube.com/embed/') || src.includes('player.vimeo.com/video/'))) {
-          if (!DETECTED_VIDEOS.has(src)) {
-            DETECTED_VIDEOS.set(src, true);
-            videos.push({
-              url: src,
-              title: `Embedded Frame Video (${getPlatformName(src)})`,
-              thumbnail: '',
-              type: 'HLS',
-              platform: getPlatformName(src)
-            });
+        const src = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('data-lazy-src');
+        if (src) {
+          const isYouTube = src.includes('youtube.com/embed/') || src.includes('youtube-nocookie.com/embed/');
+          const isVimeo = src.includes('player.vimeo.com/video/');
+          const isVdocipher = src.includes('player.vdocipher.com/v2/');
+          const isBunny = src.includes('mediadelivery.net/embed/') || src.includes('iframe.mediadelivery.net');
+          
+          if (isYouTube || isVimeo || isVdocipher || isBunny) {
+            let targetUrl = src;
+            let title = `Embedded Frame Video (${getPlatformName(src)})`;
+            let thumbnail = '';
+            let type = 'HLS';
+
+            if (isYouTube) {
+              const match = src.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+              if (match) {
+                const videoId = match[1];
+                targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                title = `Embedded YouTube Video (${videoId})`;
+                type = 'YouTube';
+              }
+            } else if (isVimeo) {
+              const match = src.match(/\/video\/([0-9]+)/);
+              if (match) {
+                const videoId = match[1];
+                targetUrl = `https://vimeo.com/${videoId}`;
+                title = `Embedded Vimeo Video (${videoId})`;
+                type = 'Vimeo';
+              }
+            }
+
+            if (!DETECTED_VIDEOS.has(targetUrl)) {
+              DETECTED_VIDEOS.set(targetUrl, true);
+              videos.push({
+                url: targetUrl,
+                title: title,
+                thumbnail: thumbnail,
+                type: type,
+                platform: getPlatformName(targetUrl)
+              });
+            }
           }
         }
       } catch (e) {}

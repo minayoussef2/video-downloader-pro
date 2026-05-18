@@ -139,6 +139,60 @@ chrome.webRequest.onHeadersReceived.addListener(
     let type = null;
     const url = details.url.toLowerCase();
     
+    // Sniff embedded YouTube videos via iframe requests
+    if (url.includes('youtube.com/embed/') || url.includes('youtube-nocookie.com/embed/')) {
+      const match = details.url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
+      if (match) {
+        const videoId = match[1];
+        const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        
+        const stream = {
+          url: watchUrl,
+          title: `Embedded YouTube Video (${videoId})`,
+          type: 'YouTube',
+          thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+          platform: 'YouTube',
+          referer: details.initiator || '',
+          tabId: details.tabId,
+          size: '',
+          timestamp: Date.now()
+        };
+
+        if (!recentStreams.some(existing => existing.url === watchUrl)) {
+          console.log(`[Sniffer] Detected Embedded YouTube: ${watchUrl}`);
+          recentStreams.unshift(stream);
+          if (recentStreams.length > 100) recentStreams.pop();
+        }
+      }
+    }
+
+    // Sniff embedded Vimeo videos via iframe requests
+    if (url.includes('player.vimeo.com/video/')) {
+      const match = details.url.match(/\/video\/([0-9]+)/);
+      if (match) {
+        const videoId = match[1];
+        const watchUrl = `https://vimeo.com/${videoId}`;
+        
+        const stream = {
+          url: watchUrl,
+          title: `Embedded Vimeo Video (${videoId})`,
+          type: 'Vimeo',
+          thumbnail: '',
+          platform: 'Vimeo',
+          referer: details.initiator || '',
+          tabId: details.tabId,
+          size: '',
+          timestamp: Date.now()
+        };
+
+        if (!recentStreams.some(existing => existing.url === watchUrl)) {
+          console.log(`[Sniffer] Detected Embedded Vimeo: ${watchUrl}`);
+          recentStreams.unshift(stream);
+          if (recentStreams.length > 100) recentStreams.pop();
+        }
+      }
+    }
+
     const initiator = details.initiator ? details.initiator.toLowerCase() : '';
     // Ignore all background network sniffing when on YouTube or Instagram.
     // They are officially supported by yt-dlp, so showing CDN chunks or media fragments is useless and clutters the UI.
