@@ -2,11 +2,15 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VideoDownloaderPro.ViewModels"
+        xmlns:conv="clr-namespace:VideoDownloaderPro.Converters"
         Title="Video Downloader Pro v3.0" Height="780" Width="1200"
         MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         Icon="/icon.ico"
         Background="{StaticResource BgPrimaryBrush}">
+    <Window.Resources>
+        <conv:StringToVisibilityConverter x:Key="StringToVis"/>
+    </Window.Resources>
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>

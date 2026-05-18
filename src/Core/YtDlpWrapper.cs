@@ -445,23 +445,77 @@ public class YtDlpWrapper
         }
     }
 
+    [System.Runtime.InteropServices.DllImport("ntdll.dll", EntryPoint = "NtSuspendProcess")]
+    private static extern int NtSuspendProcess(System.IntPtr processHandle);
+
+    [System.Runtime.InteropServices.DllImport("ntdll.dll", EntryPoint = "NtResumeProcess")]
+    private static extern int NtResumeProcess(System.IntPtr processHandle);
+
     public void Pause()
     {
         _isPaused = true;
         _pauseEvent.Reset();
+
+        var proc = _process;
+        if (proc != null)
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        NtSuspendProcess(proc.Handle);
+                    }
+                }
+                catch { }
+            });
+        }
     }
 
     public void Resume()
     {
         _isPaused = false;
         _pauseEvent.Set();
+
+        var proc = _process;
+        if (proc != null)
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        NtResumeProcess(proc.Handle);
+                    }
+                }
+                catch { }
+            });
+        }
     }
 
     public void Cancel()
     {
         _isCancelled = true;
         _pauseEvent.Set(); // Unblock if paused
-        try { _process?.Kill(entireProcessTree: true); } catch { }
+        var proc = _process;
+        if (proc != null)
+        {
+            // Resume first if suspended, so the process is awake to handle standard termination signals
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                    {
+                        NtResumeProcess(proc.Handle);
+                    }
+                }
+                catch { }
+                try { proc.Kill(entireProcessTree: true); } catch { }
+            });
+        }
     }
 
     private static string EscapeJson(string s)
