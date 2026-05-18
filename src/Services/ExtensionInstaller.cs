@@ -93,7 +93,7 @@ public static class ExtensionInstaller
             {
                 // Point to the unpacked extension directory
                 key.SetValue("path", extensionDir);
-                key.SetValue("version", "3.0.0");
+                key.SetValue("version", "1.0.0");
                 Debug.WriteLine($"Registered extension for {browserKey}");
             }
         }

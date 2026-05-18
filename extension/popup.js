@@ -2,12 +2,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusEl = document.getElementById('appStatus');
   const listEl = document.getElementById('videoList');
   const offlineError = document.getElementById('app-offline-error');
-  let isAppRunning = false;
+  
+  // Navigation elements
+  const tabStreamsBtn = document.getElementById('tab-streams');
+  const tabSettingsBtn = document.getElementById('tab-settings');
+  const paneStreams = document.getElementById('pane-streams');
+  const paneSettings = document.getElementById('pane-settings');
+  
+  // Preference elements
+  const toggleIntercept = document.getElementById('toggle-intercept');
+  const toggleSiteActive = document.getElementById('toggle-site-active');
+  const siteDomainLabel = document.getElementById('site-domain-label');
+  const exclusionContainer = document.getElementById('exclusion-container');
+  
+  // Batch action elements
+  const batchRow = document.getElementById('batch-row');
+  const btnBatchQueue = document.getElementById('btn-batch-queue');
+  const btnBatchDl = document.getElementById('btn-batch-dl');
 
-  // Check app status directly from popup for better reliability
+  let isAppRunning = false;
+  let currentDomain = '';
+  let activeTabId = null;
+  let activeTabUrl = '';
+  let discoveredVideos = [];
+
+  // 1. Direct App Connection Status Monitoring
   async function checkAppDirectly() {
     try {
-      // Try localhost first (Chrome prefers it over 127.0.0.1)
       const res = await fetch('http://localhost:18888/status');
       const data = await res.json();
       isAppRunning = data && data.status === 'running';
@@ -17,61 +38,144 @@ document.addEventListener('DOMContentLoaded', async () => {
         const data = await res.json();
         isAppRunning = data && data.status === 'running';
       } catch (err2) {
-        console.warn('[Popup] Connection failed to both localhost and 127.0.0.1');
         isAppRunning = false;
       }
     }
 
     if (isAppRunning) {
-      if (statusEl) {
-        statusEl.textContent = 'App Connected';
-        statusEl.classList.add('online');
-      }
-      if (offlineError) offlineError.style.display = 'none';
-      Array.from(document.getElementsByClassName('download-btn')).forEach(btn => btn.disabled = false);
+      statusEl.textContent = 'App Connected';
+      statusEl.className = 'status-badge online';
+      offlineError.style.display = 'none';
+      document.querySelectorAll('.btn-action, .btn-batch').forEach(btn => {
+        if (!btn.hasAttribute('data-disabled')) btn.removeAttribute('disabled');
+      });
     } else {
-      if (statusEl) {
-        statusEl.textContent = 'App Offline (Re-check Port 18888)';
-        statusEl.classList.remove('online');
-      }
-      if (offlineError) offlineError.style.display = 'block';
-      Array.from(document.getElementsByClassName('download-btn')).forEach(btn => btn.disabled = true);
+      statusEl.textContent = 'App Offline';
+      statusEl.className = 'status-badge';
+      offlineError.style.display = 'block';
+      document.querySelectorAll('.btn-action, .btn-batch').forEach(btn => {
+        btn.setAttribute('disabled', 'true');
+      });
     }
   }
 
   checkAppDirectly();
-  setInterval(checkAppDirectly, 5000); // Auto-refresh status every 5 seconds
+  setInterval(checkAppDirectly, 5000);
 
-  // Query active tab
+  // 2. Navigation Tab Handlers
+  tabStreamsBtn.addEventListener('click', () => {
+    tabStreamsBtn.classList.add('active');
+    tabSettingsBtn.classList.remove('active');
+    paneStreams.classList.add('active');
+    paneSettings.classList.remove('active');
+  });
+
+  tabSettingsBtn.addEventListener('click', () => {
+    tabSettingsBtn.classList.add('active');
+    tabStreamsBtn.classList.remove('active');
+    paneSettings.classList.add('active');
+    paneStreams.classList.remove('active');
+    renderExclusionList();
+  });
+
+  // 3. Query Active Browser Tab Details
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  if (!tab || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
-    listEl.innerHTML = '<div class="empty-state">Cannot scan system pages</div>';
+  if (tab) {
+    activeTabId = tab.id;
+    activeTabUrl = tab.url;
+    try {
+      currentDomain = new URL(tab.url).hostname.toLowerCase();
+      siteDomainLabel.textContent = `Disable capture for ${currentDomain}`;
+    } catch {}
+  }
+
+  if (!tab || activeTabUrl.startsWith('chrome://') || activeTabUrl.startsWith('edge://')) {
+    listEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div>Scanning system pages is blocked by the browser.</div>';
     return;
   }
 
-  // Current tab origin for filtering
-  let currentOrigin = '';
-  try { currentOrigin = new URL(tab.url).origin; } catch {}
+  // 4. Preferences & Exclusion Site List Management
+  const storage = await chrome.storage.local.get(['autoIntercept', 'excludedSites']);
+  
+  // Set initial checkbox states
+  toggleIntercept.checked = storage.autoIntercept !== false;
+  
+  const excludedSites = storage.excludedSites || [];
+  const isCurrentSiteExcluded = excludedSites.includes(currentDomain);
+  toggleSiteActive.checked = !isCurrentSiteExcluded;
 
-  // Ask background script for network-sniffed streams
+  toggleIntercept.addEventListener('change', () => {
+    chrome.storage.local.set({ autoIntercept: toggleIntercept.checked });
+  });
+
+  toggleSiteActive.addEventListener('change', async () => {
+    const data = await chrome.storage.local.get('excludedSites');
+    let list = data.excludedSites || [];
+    
+    if (toggleSiteActive.checked) {
+      // Remove site from exclusions (enable capture)
+      list = list.filter(site => site !== currentDomain);
+    } else {
+      // Add site to exclusions (disable capture)
+      if (!list.includes(currentDomain) && currentDomain) {
+        list.push(currentDomain);
+      }
+    }
+    await chrome.storage.local.set({ excludedSites: list });
+    renderExclusionList();
+  });
+
+  async function renderExclusionList() {
+    const data = await chrome.storage.local.get('excludedSites');
+    const list = data.excludedSites || [];
+    exclusionContainer.innerHTML = '';
+
+    if (list.length === 0) {
+      exclusionContainer.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 10px;">No excluded websites.</div>';
+      return;
+    }
+
+    list.forEach(site => {
+      const item = document.createElement('div');
+      item.className = 'excluded-item';
+      item.innerHTML = `
+        <span>${site}</span>
+        <button class="btn-remove-site" data-site="${site}">✕</button>
+      `;
+      exclusionContainer.appendChild(item);
+
+      item.querySelector('.btn-remove-site').addEventListener('click', async (e) => {
+        const siteToRemove = e.target.getAttribute('data-site');
+        let updatedList = list.filter(s => s !== siteToRemove);
+        await chrome.storage.local.set({ excludedSites: updatedList });
+        
+        if (siteToRemove === currentDomain) {
+          toggleSiteActive.checked = true;
+        }
+        renderExclusionList();
+      });
+    });
+  }
+
+  // 5. Gather Media Streams and Scan Page DOM
+  let currentOrigin = '';
+  try { currentOrigin = new URL(activeTabUrl).origin; } catch {}
+
   chrome.runtime.sendMessage({ action: 'getSniffedStreams' }, (bgRes) => {
-    // Ask content script for page videos
-    chrome.tabs.sendMessage(tab.id, { action: 'detectVideos' }, (res) => {
+    chrome.tabs.sendMessage(activeTabId, { action: 'detectVideos' }, (res) => {
       let allVideos = [];
-      
-      // 1. Add sniffed streams
+
+      // Add network sniffed streams
       if (bgRes && bgRes.streams) {
         const filtered = bgRes.streams.filter(s => {
           if (!currentOrigin) return true;
-          // Filter by current tabId if available, or origin matching
-          if (s.tabId === tab.id) return true;
+          if (s.tabId === activeTabId) return true;
           return s.referer.includes(currentOrigin) || currentOrigin.includes(s.referer);
         });
         allVideos = allVideos.concat(filtered);
       }
-      
-      // 2. Add page detected streams (DOM scan)
+
+      // Add DOM scanned streams
       if (!chrome.runtime.lastError && res && res.videos) {
         res.videos.forEach(v => {
           if (!v.type) {
@@ -80,16 +184,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             else if (url.includes('.mpd')) v.type = 'DASH';
             else v.type = 'Media';
           }
-          if (!v.referer) v.referer = tab.url;
+          if (!v.referer) v.referer = activeTabUrl;
         });
         allVideos = allVideos.concat(res.videos);
       }
 
-      // 3. Robust Deduplication
+      // Robust Deduplication
       const uniqueVideos = [];
       const seenUrls = new Set();
       for (const v of allVideos) {
-        // Normalize URL for comparison (remove fragments)
         const normUrl = v.url.split('#')[0];
         if (!seenUrls.has(normUrl)) {
           seenUrls.add(normUrl);
@@ -97,19 +200,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
-      if (uniqueVideos.length === 0) {
+      discoveredVideos = uniqueVideos;
+
+      if (discoveredVideos.length === 0) {
         listEl.innerHTML = `
           <div class="empty-state">
-            No videos detected on this page.<br><br>
-            <span style="font-size: 11px;">Try playing the video to trigger detection.</span>
+            <div class="empty-state-icon">🔍</div>
+            No video streams detected on this page.<br><br>
+            <span style="font-size: 10px; color: var(--text-muted);">Try playing the video to trigger network detection.</span>
           </div>`;
+        batchRow.style.display = 'none';
         return;
       }
 
-      renderVideos(uniqueVideos);
+      batchRow.style.display = 'flex';
+      renderVideos(discoveredVideos);
     });
   });
 
+  // 6. Render Dynamic Video Cards
   function renderVideos(videos) {
     listEl.innerHTML = '';
     
@@ -118,17 +227,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       item.className = 'video-item';
       
       const isDash = vid.type === 'DASH';
-      const typeBadge = `<span class="type-badge ${vid.type.toLowerCase()}">${vid.type}</span>`;
+      const badgeClass = vid.type.toLowerCase();
+      const typeBadge = `<span class="badge ${badgeClass}">${vid.type}</span>`;
       
+      // Determine file details icon
+      let typeIcon = '🎬';
+      if (vid.type === 'HLS' || vid.type === 'DASH' || vid.type === 'MSS') typeIcon = '📡';
+      else if (vid.type === 'Page') typeIcon = '📄';
+      
+      // Show file size indicator next to domain if present
+      const sizeIndicator = vid.size ? ` • 📦 ${vid.size}` : '';
+
       item.innerHTML = `
-        <div class="video-thumb">
-          <div class="type-icon">${vid.type === 'Media' ? '🎬' : '📡'}</div>
+        <div class="video-header-row" id="header-${idx}">
+          <div class="video-thumb">${typeIcon}</div>
+          <div class="video-meta-block">
+            <div class="video-title" title="${vid.title}">${vid.title}</div>
+            <div class="video-sub-meta">
+              ${typeBadge} • ${new URL(vid.url).hostname.replace('www.', '')}${sizeIndicator}
+            </div>
+          </div>
         </div>
-        <div class="video-info">
-          <div class="video-title" title="${vid.title}">${vid.title}</div>
-          <div class="video-meta">${typeBadge} • ${new URL(vid.url).hostname}</div>
+        
+        <div class="video-details" id="details-${idx}">
+          <div class="details-row"><strong>Resource URL:</strong> ${vid.url}</div>
+          <div class="details-row"><strong>Origin Referer:</strong> ${vid.referer || 'Current Tab'}</div>
           
-          <div class="controls">
+          <div class="action-controls">
             <select id="quality-${idx}" ${isDash ? 'disabled' : ''}>
               <option value="Best">Best Quality</option>
               <option value="1080p">1080p</option>
@@ -137,49 +262,110 @@ document.addEventListener('DOMContentLoaded', async () => {
             </select>
           </div>
           
-          <div class="actions">
+          <div class="action-controls" style="margin-top: 8px;">
             ${isDash ? 
-              `<button class="btn-queue" disabled style="width: 100%; opacity: 0.5;">Unsupported (DRM)</button>` 
+              `<button class="btn-action primary" disabled style="width: 100%; opacity: 0.5;" data-disabled="true">DRM Protected (DASH)</button>` 
             : 
-              `<button class="btn-queue" id="btn-q-${idx}">+ Queue</button>
-               <button class="btn-download" id="btn-dl-${idx}">Download</button>`
+              `<button class="btn-action secondary" id="btn-q-${idx}">+ Queue</button>
+               <button class="btn-action primary" id="btn-dl-${idx}">Download</button>
+               <button class="btn-action copy" id="btn-copy-${idx}" title="Copy URL">📋</button>`
             }
           </div>
-          <div id="msg-${idx}" class="msg"></div>
+          <div id="msg-${idx}" class="msg-feedback"></div>
         </div>
       `;
       
       listEl.appendChild(item);
 
+      // Accordion Collapse/Expand toggles
+      document.getElementById(`header-${idx}`).addEventListener('click', () => {
+        const detailsPanel = document.getElementById(`details-${idx}`);
+        const isActive = detailsPanel.classList.contains('active');
+        
+        // Collapse all others
+        document.querySelectorAll('.video-details').forEach(el => el.classList.remove('active'));
+        
+        if (!isActive) {
+          detailsPanel.classList.add('active');
+        }
+      });
+
       if (!isDash) {
         document.getElementById(`btn-q-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'queue', vid.type, vid.referer, vid.title));
         document.getElementById(`btn-dl-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'download', vid.type, vid.referer, vid.title));
+        document.getElementById(`btn-copy-${idx}`).addEventListener('click', () => {
+          navigator.clipboard.writeText(vid.url);
+          const msg = document.getElementById(`msg-${idx}`);
+          msg.textContent = 'URL Copied to clipboard!';
+          msg.className = 'msg-feedback success';
+          setTimeout(() => msg.textContent = '', 2000);
+        });
       }
     });
   }
 
+  // 7. Single Download Request Dispatcher
   function sendAction(url, idx, action, type, referer, title) {
     const msgEl = document.getElementById(`msg-${idx}`);
     const quality = document.getElementById(`quality-${idx}`).value;
 
     if (!isAppRunning) {
       msgEl.textContent = 'App offline';
-      msgEl.className = 'msg error';
+      msgEl.className = 'msg-feedback error';
       return;
     }
 
-    msgEl.textContent = 'Sending...';
-    msgEl.className = 'msg';
+    msgEl.textContent = 'Sending to app...';
+    msgEl.className = 'msg-feedback';
 
     chrome.runtime.sendMessage({ action: 'sendToApp', url, quality, downloadAction: action, type, referer, title }, (res) => {
       if (res && res.success) {
-        msgEl.textContent = 'Success!';
-        msgEl.className = 'msg success';
+        msgEl.textContent = 'Success! Added to Queue.';
+        msgEl.className = 'msg-feedback success';
         setTimeout(() => window.close(), 1000);
       } else {
         msgEl.textContent = res ? res.error : 'Connection error';
-        msgEl.className = 'msg error';
+        msgEl.className = 'msg-feedback error';
       }
+    });
+  }
+
+  // 8. Batch Download Operations (Queue All & Download All)
+  btnBatchQueue.addEventListener('click', () => runBatch('queue'));
+  btnBatchDl.addEventListener('click', () => runBatch('download'));
+
+  function runBatch(action) {
+    if (!isAppRunning) return;
+    
+    // Filter down to non-DRM streams (exclude DASH)
+    const downloadable = discoveredVideos.filter(vid => vid.type !== 'DASH');
+    if (downloadable.length === 0) return;
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    downloadable.forEach((vid, i) => {
+      chrome.runtime.sendMessage({ 
+        action: 'sendToApp', 
+        url: vid.url, 
+        quality: 'Best', 
+        downloadAction: action, 
+        type: vid.type, 
+        referer: vid.referer || activeTabUrl, 
+        title: vid.title 
+      }, (res) => {
+        if (res && res.success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+
+        // Once all processed, show status
+        if (successCount + failedCount === downloadable.length) {
+          alert(`Batch Action Complete!\n\nSuccessful: ${successCount}\nFailed: ${failedCount}`);
+          window.close();
+        }
+      });
     });
   }
 });

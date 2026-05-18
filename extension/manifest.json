@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Video Downloader Pro",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "description": "Detect and download videos from any website. Works with Video Downloader Pro desktop app.",
-  "permissions": ["activeTab", "storage", "webRequest"],
+  "permissions": ["activeTab", "storage", "webRequest", "downloads"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",

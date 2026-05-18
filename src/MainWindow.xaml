@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:VideoDownloaderPro.ViewModels"
         xmlns:conv="clr-namespace:VideoDownloaderPro.Converters"
-        Title="Video Downloader Pro v3.0" Height="780" Width="1200"
+        Title="Video Downloader Pro v1.0.0" Height="780" Width="1200"
         MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen"
         Icon="/icon.ico"

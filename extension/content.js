@@ -1,20 +1,53 @@
-// Content script — detects video elements and media URLs on any page
+// Content script - Video Downloader Pro v3.1.0
 (function() {
   'use strict';
 
   const DETECTED_VIDEOS = new Map();
 
+  // Track the Control (Ctrl) key press state and store it in chrome.storage.local
+  function updateCtrlState(isPressed) {
+    chrome.storage.local.set({
+      ctrlPressed: isPressed,
+      ctrlPressedTime: isPressed ? Date.now() : 0
+    });
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Control') {
+      updateCtrlState(true);
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Control') {
+      updateCtrlState(false);
+    }
+  });
+
+  // Reset Ctrl state on window blur (to avoid stuck key states)
+  window.addEventListener('blur', () => {
+    updateCtrlState(false);
+  });
+
+  // Track clicking specifically with Ctrl held
+  window.addEventListener('click', (e) => {
+    if (e.ctrlKey) {
+      updateCtrlState(true);
+      // Automatically expire it shortly
+      setTimeout(() => updateCtrlState(false), 1500);
+    }
+  }, { capture: true });
+
   function detectVideos() {
     const videos = [];
     const pageUrl = window.location.href;
 
-    // 1. Always add the current page URL. 
-    // yt-dlp is extremely smart and supports over 1000 sites.
-    // Usually passing the page URL is the most reliable method.
+    // 1. Core Page Scraper - yt-dlp native extraction is the ultimate fallback!
+    // Since yt-dlp has custom extractors for 1000+ sites (YouTube, Instagram, Facebook),
+    // presenting the current page URL is by far the most reliable detection method.
     if (!DETECTED_VIDEOS.has(pageUrl)) {
       DETECTED_VIDEOS.set(pageUrl, true);
       
-      // Better title detection
       let cleanTitle = document.title;
       if (pageUrl.includes('youtube.com')) cleanTitle = cleanTitle.replace(/ - YouTube$/, '');
       if (pageUrl.includes('facebook.com')) cleanTitle = cleanTitle.replace(/ \| Facebook$/, '');
@@ -24,28 +57,33 @@
         url: pageUrl,
         title: cleanTitle || 'Current Page (yt-dlp auto-detect)',
         thumbnail: getPageThumbnail(),
-        type: 'page_url',
+        type: 'Page',
         platform: getPlatformName(pageUrl)
       });
     }
 
-    // 2. Detect <video> elements (only if they are direct MP4/WEBM URLs, NO BLOBs)
+    // 2. DOM <video> element scanning
     document.querySelectorAll('video').forEach((vid, i) => {
       const src = vid.src || vid.querySelector('source')?.src;
-      // Exclude blob URLs because they are local memory pointers that yt-dlp cannot access
+      // Exclude blob URLs since yt-dlp cannot resolve local memory references
       if (src && !src.startsWith('blob:') && !DETECTED_VIDEOS.has(src)) {
         DETECTED_VIDEOS.set(src, true);
+        
+        let title = document.title;
+        if (title.length > 40) title = title.substring(0, 37) + '...';
+        const fileName = src.split('/').pop().split('?')[0] || 'video';
+        
         videos.push({
           url: src,
-          title: `Direct Media File (${src.split('/').pop().split('?')[0] || 'video'})`,
+          title: `Direct Media Element (${title} - ${fileName})`,
           thumbnail: vid.poster || '',
-          type: 'video_element',
+          type: 'Media',
           duration: vid.duration ? formatDuration(vid.duration) : ''
         });
       }
     });
 
-    // 3. Detect embedded videos in <iframe> (YouTube, Vimeo, etc.)
+    // 3. Scan Embedded Iframes (YouTube, Vimeo, etc.)
     document.querySelectorAll('iframe').forEach(iframe => {
       try {
         const src = iframe.src;
@@ -54,9 +92,9 @@
             DETECTED_VIDEOS.set(src, true);
             videos.push({
               url: src,
-              title: `Embedded Video (${getPlatformName(src)})`,
+              title: `Embedded Frame Video (${getPlatformName(src)})`,
               thumbnail: '',
-              type: 'iframe_embed',
+              type: 'HLS',
               platform: getPlatformName(src)
             });
           }
@@ -80,11 +118,9 @@
   }
 
   function getPageThumbnail() {
-    // Try Open Graph image
     const ogImage = document.querySelector('meta[property="og:image"]');
     if (ogImage) return ogImage.content;
 
-    // Try Twitter card image
     const twImage = document.querySelector('meta[name="twitter:image"]');
     if (twImage) return twImage.content;
 
@@ -100,7 +136,6 @@
                   : `${m}:${String(s).padStart(2,'0')}`;
   }
 
-  // Report detected videos to background script
   function reportToBackground(videos) {
     if (videos.length > 0) {
       chrome.runtime.sendMessage({ 
@@ -108,7 +143,7 @@
         streams: videos.map(v => ({
           ...v,
           referer: window.location.href,
-          tabId: null // Content script doesn't know its own tabId easily
+          tabId: null 
         }))
       });
     }
@@ -124,7 +159,7 @@
     return true;
   });
 
-  // Watch for new video elements being added (TikTok, Instagram scrolling)
+  // Monitor dynamic content DOM changes (lazy-loaded reels/TikToks/YouTube pages)
   const observer = new MutationObserver(() => {
     const newVideos = detectVideos();
     if (newVideos.length > 0) {
@@ -134,7 +169,7 @@
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Initial detection
+  // Scan immediately upon page load idle
   setTimeout(() => {
     const videos = detectVideos();
     reportToBackground(videos);

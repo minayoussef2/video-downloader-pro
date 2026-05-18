@@ -102,7 +102,7 @@ public class ExtensionServer : IDisposable
             switch (request.Url?.AbsolutePath)
             {
                 case "/status":
-                    responseBody = JsonConvert.SerializeObject(new { status = "running", version = "3.0.0" });
+                    responseBody = JsonConvert.SerializeObject(new { status = "running", version = "1.0.0" });
                     break;
 
                 case "/download":

@@ -1,5 +1,16 @@
-// Background service worker
+// Background service worker - Video Downloader Pro v1.0.0
 const APP_URL = 'http://127.0.0.1:18888';
+const recentStreams = [];
+
+// Default configuration stored in chrome.storage.local
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({
+    autoIntercept: true,
+    excludedSites: [],
+    ctrlPressed: false,
+    ctrlPressedTime: 0
+  });
+});
 
 // Check if desktop app is running
 async function checkAppStatus() {
@@ -42,9 +53,6 @@ async function sendToApp(url, quality, action, type, referer, title) {
   }
 }
 
-// Global list of recent streams
-const recentStreams = [];
-
 // Helper to get tab info (title) for better stream names
 async function getTabTitle(tabId) {
   try {
@@ -56,26 +64,52 @@ async function getTabTitle(tabId) {
   }
 }
 
-async function addSniffedStream(details, type) {
+// Add a stream to our recent list with rich metadata
+async function addSniffedStream(details, type, sizeBytes = 0) {
   const url = details.url;
   
-  // Prevent duplicates
+  // Exclude duplicate URLs
   if (recentStreams.some(s => s.url === url)) {
     return;
   }
 
   // Get page title for better naming
   const pageTitle = await getTabTitle(details.tabId);
-  const fileName = url.split('/').pop().split('?')[0] || 'Media Stream';
+  
+  let fileName = 'Media Stream';
+  try {
+    const parsedUrl = new URL(url);
+    fileName = parsedUrl.pathname.split('/').pop().split('?')[0] || 'Media Stream';
+  } catch {}
+  
+  // If it's a YouTube googlevideo URL, name it nicely
+  if (url.includes('googlevideo.com')) {
+    fileName = 'YouTube Media Block';
+  } else if (url.includes('instagram.com') || url.includes('cdninstagram.com')) {
+    fileName = 'Instagram Video Block';
+  }
+
   const displayTitle = pageTitle ? `${pageTitle} (${fileName})` : fileName;
 
-  // Try to find the page origin
+  // Try to find the page origin / referer
   let referer = details.initiator || '';
   if (!referer || referer === 'null') {
     try {
       const urlObj = new URL(url);
       referer = urlObj.origin;
     } catch {}
+  }
+
+  // Calculate formatted size
+  let formattedSize = '';
+  if (sizeBytes > 0) {
+    if (sizeBytes >= 1024 * 1024 * 1024) {
+      formattedSize = `${(sizeBytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    } else if (sizeBytes >= 1024 * 1024) {
+      formattedSize = `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+    } else {
+      formattedSize = `${(sizeBytes / 1024).toFixed(0)} KB`;
+    }
   }
 
   const stream = {
@@ -86,72 +120,136 @@ async function addSniffedStream(details, type) {
     platform: type,
     referer: referer,
     tabId: details.tabId,
+    size: formattedSize,
     timestamp: Date.now()
   };
 
-  console.log(`[Sniffer] Detected ${type}: ${url}`);
+  console.log(`[Sniffer] Detected ${type} (${formattedSize}): ${url}`);
   recentStreams.unshift(stream);
   
-  if (recentStreams.length > 50) {
+  if (recentStreams.length > 100) {
     recentStreams.pop();
   }
 }
 
-chrome.webRequest.onBeforeRequest.addListener(
-  (details) => {
-    let type = null;
-    const url = details.url.toLowerCase();
-    
-    if (url.includes('.m3u8')) type = 'HLS';
-    else if (url.includes('.mpd')) type = 'DASH';
-    else if (url.includes('.ism/manifest')) type = 'MSS';
-    
-    if (type) addSniffedStream(details, type);
-  },
-  { urls: ["<all_urls>"] }
-);
-
-chrome.webRequest.onResponseStarted.addListener(
-  (details) => {
-    let type = null;
-    const url = details.url.toLowerCase();
-    if (url.includes('.m3u8')) type = 'HLS';
-    else if (url.includes('.mpd')) type = 'DASH';
-    
-    if (type) addSniffedStream(details, type);
-  },
-  { urls: ["<all_urls>"] }
-);
-
+// 1. LISTEN TO NETWORKS & DETECT COMPLEX STREAMS (YouTube, Instagram, HLS, DASH, Direct Video)
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
     let type = null;
     const url = details.url.toLowerCase();
     
+    // Check Content-Type header
     const ctHeader = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type');
+    const clHeader = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-length');
+    const size = clHeader ? parseInt(clHeader.value) : 0;
+
     if (ctHeader) {
       const ct = ctHeader.value.toLowerCase();
-      // Expanded detection from fetchv patterns
-      if (ct.includes('application/vnd.apple.mpegurl') || ct.includes('application/x-mpegurl')) type = 'HLS';
-      else if (ct.includes('application/dash+xml')) type = 'DASH';
-      else if (ct.includes('application/vnd.ms-sstr+xml')) type = 'MSS';
-      else if (ct.includes('video/') || ct.includes('audio/mpeg') || ct.includes('audio/ogg')) {
-          // Avoid small chunks or images that might be mislabeled
-          const clHeader = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-length');
-          const size = clHeader ? parseInt(clHeader.value) : 0;
-          if (!clHeader || size > 1024 * 100) { // 100KB minimum for media
-              type = 'Media';
-          }
+      
+      // HLS detection
+      if (ct.includes('application/vnd.apple.mpegurl') || ct.includes('application/x-mpegurl')) {
+        type = 'HLS';
+      }
+      // DASH detection
+      else if (ct.includes('application/dash+xml')) {
+        type = 'DASH';
+      }
+      // MSS detection
+      else if (ct.includes('application/vnd.ms-sstr+xml')) {
+        type = 'MSS';
+      }
+      // Direct Video / Audio streams
+      else if (ct.includes('video/') || ct.includes('audio/mpeg') || ct.includes('audio/ogg') || ct.includes('audio/mp4') || ct.includes('audio/aac')) {
+        // Exclude small chunks (e.g. less than 100KB) to avoid false positives (images or short sounds)
+        if (!clHeader || size > 100 * 1024) {
+          type = 'Media';
+        }
       }
     }
 
-    if (type) addSniffedStream(details, type);
+    // 2. Fallback to URL extension sniffing if Content-Type is missing
+    if (!type) {
+      if (url.includes('.m3u8')) type = 'HLS';
+      else if (url.includes('.mpd')) type = 'DASH';
+      else if (url.includes('.ism/manifest')) type = 'MSS';
+      else if (url.includes('googlevideo.com/videoplayback')) type = 'YouTube';
+      else if ((url.includes('instagram.com') || url.includes('cdninstagram.com')) && url.includes('/v/')) type = 'Instagram';
+      else {
+        // Direct media extensions
+        const mediaExtensions = ['.mp4', '.mkv', '.webm', '.ts', '.flv', '.avi', '.mov', '.mp3', '.m4a', '.wav', '.ogg'];
+        if (mediaExtensions.some(ext => url.split('?')[0].endsWith(ext))) {
+          type = 'Media';
+        }
+      }
+    }
+
+    if (type) {
+      addSniffedStream(details, type, size);
+    }
   },
   { urls: ["<all_urls>"] },
   ["responseHeaders"]
 );
 
-// Listen for messages from popup and content scripts
+// 3. LISTEN TO BROWSER DOWNLOADS & HACK THEM (NeatDownloadManager style)
+chrome.downloads.onCreated.addListener(async (downloadItem) => {
+  // Read current user preferences
+  const prefs = await chrome.storage.local.get(['autoIntercept', 'excludedSites', 'ctrlPressed', 'ctrlPressedTime']);
+  
+  if (!prefs.autoIntercept) return;
+
+  // Check if Ctrl key was held down (pressed within the last 1.5 seconds)
+  const isCtrlHeld = prefs.ctrlPressed || (Date.now() - (prefs.ctrlPressedTime || 0) < 1500);
+  if (isCtrlHeld) {
+    console.log('[Interceptor] Bypass triggered by Ctrl key.');
+    return;
+  }
+
+  // Check site exclusions
+  let originHost = '';
+  try {
+    const urlObj = new URL(downloadItem.referrer || downloadItem.url);
+    originHost = urlObj.hostname.toLowerCase();
+  } catch {}
+
+  const isExcluded = prefs.excludedSites?.some(site => originHost.includes(site) || site.includes(originHost));
+  if (isExcluded) {
+    console.log(`[Interceptor] Bypass triggered: ${originHost} is on the exclusion list.`);
+    return;
+  }
+
+  // Check if file extension matches our media/download list
+  const urlLower = downloadItem.url.toLowerCase().split('?')[0];
+  const fileExts = [
+    '.mp4', '.mkv', '.webm', '.ts', '.flv', '.avi', '.mov', '.wmv', '.m4v', '.3gp', // Video
+    '.mp3', '.m4a', '.wav', '.ogg', '.aac', '.flac', '.opus',                      // Audio
+    '.srt', '.vtt', '.ass', '.ssa', '.sub'                                         // Subtitles
+  ];
+
+  const matchesExt = fileExts.some(ext => urlLower.endsWith(ext) || downloadItem.filename.toLowerCase().endsWith(ext));
+  if (!matchesExt) return;
+
+  // Check if the Desktop companion app is running
+  const appRunning = await checkAppStatus();
+  if (!appRunning) {
+    console.log('[Interceptor] Desktop app is offline. Allowing browser to download.');
+    return;
+  }
+
+  console.log(`[Interceptor] Intercepting download: ${downloadItem.url}`);
+
+  // Cancel Chrome's default download
+  chrome.downloads.cancel(downloadItem.id, () => {
+    // Erase from download history to keep browser clean
+    chrome.downloads.erase({ id: downloadItem.id });
+  });
+
+  // Forward details to desktop application to download instantly
+  let title = downloadItem.filename || 'Downloaded File';
+  sendToApp(downloadItem.url, 'Best', 'download', 'Direct File', downloadItem.referrer, title);
+});
+
+// 4. PORT & GENERAL COMMUNICATIONS INTERFACE
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === 'checkStatus') {
     checkAppStatus().then(running => sendResponse({ running }));
@@ -166,10 +264,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.action === 'appendStreams') {
-    // Merge videos found by content script into the persistent list
     if (msg.streams) {
       msg.streams.forEach(s => {
-        // Simple deduplication
         if (!recentStreams.some(existing => existing.url === s.url)) {
           recentStreams.unshift({
             ...s,
@@ -177,7 +273,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           });
         }
       });
-      // Enforce limit of 100
       while (recentStreams.length > 100) {
         recentStreams.pop();
       }

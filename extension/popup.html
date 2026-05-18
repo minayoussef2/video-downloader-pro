@@ -4,166 +4,466 @@
   <meta charset="utf-8">
   <title>Video Downloader Pro</title>
   <style>
+    :root {
+      --bg-primary: #0A0A0F;
+      --bg-card: rgba(22, 22, 34, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-color: #6366F1;
+      --accent-grad: linear-gradient(135deg, #6366F1, #8B5CF6);
+      --text-primary: #F3F4F6;
+      --text-secondary: #9CA3AF;
+      --text-muted: #6B7280;
+    }
     body {
-      width: 350px;
+      width: 390px;
       margin: 0;
       padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #0F0F14;
-      color: #E8E8EF;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      overflow-x: hidden;
     }
     .header {
-      background-color: #161620;
-      padding: 12px 16px;
-      border-bottom: 1px solid #2A2A3E;
+      background: rgba(16, 16, 24, 0.8);
+      backdrop-filter: blur(12px);
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .title {
-      font-size: 14px;
-      font-weight: bold;
-      color: #E8E8EF;
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .status {
+    .logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(to right, #818CF8, #C084FC);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(239, 68, 68, 0.1);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      transition: all 0.3s ease;
+    }
+    .status-badge.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    /* Navigation Tabs */
+    .tab-bar {
+      display: flex;
+      background: rgba(16, 16, 24, 0.4);
+      padding: 4px;
+      margin: 12px 16px 4px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 8px;
       font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: #333350;
-      color: #8B8BA3;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
     }
-    .status.online {
-      background: #1a6b35;
-      color: #4ade80;
+    .tab-btn.active {
+      background: rgba(99, 102, 241, 0.15);
+      color: #A5B4FC;
+      border: 1px solid rgba(99, 102, 241, 0.25);
     }
-    .content {
-      padding: 16px;
+
+    .content-pane {
+      display: none;
+      padding: 12px 16px 16px 16px;
     }
+    .content-pane.active {
+      display: block;
+    }
+
+    /* Controls Panel */
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      backdrop-filter: blur(8px);
+    }
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .toggle-row:last-child {
+      margin-bottom: 0;
+    }
+    .toggle-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .toggle-sublabel {
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    
+    /* Toggle Switch Style */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 20px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px; width: 14px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-image: var(--accent-grad);
+    }
+    input:checked + .slider:before {
+      transform: translateX(18px);
+    }
+
+    /* Batch Actions Header */
+    .batch-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .btn-batch {
+      flex: 1;
+      padding: 7px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-batch:hover:not(:disabled) {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    /* Video Item List */
     .video-item {
-      background: linear-gradient(145deg, #1A1A28, #14141E);
-      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 14px;
-      border: 1px solid #2A2A3E;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      margin-bottom: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .video-item:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-1px);
+    }
+    
+    .video-header-row {
+      display: flex;
+      padding: 12px;
+      gap: 12px;
+      cursor: pointer;
     }
     .video-thumb {
-      width: 100%;
-      height: 60px;
-      background: #09090F;
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
-      border-bottom: 1px solid #2A2A3E;
+      font-size: 20px;
+      flex-shrink: 0;
     }
-    .type-icon {
-      font-size: 28px;
-    }
-    .video-info {
-      padding: 12px;
+    .video-meta-block {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     .video-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      margin-bottom: 4px;
+      color: #FFF;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #FFF;
+      margin-bottom: 4px;
     }
-    .video-meta {
-      font-size: 11px;
-      color: #8B8BA3;
-      margin-bottom: 10px;
+    .video-sub-meta {
+      font-size: 10px;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 6px;
     }
-    .type-badge {
-      padding: 1px 6px;
+    .badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1.5px 5px;
       border-radius: 4px;
-      font-weight: bold;
-      font-size: 10px;
       text-transform: uppercase;
     }
-    .type-badge.hls { background: #6366F1; color: #FFF; }
-    .type-badge.dash { background: #F59E0B; color: #FFF; }
-    .type-badge.media { background: #10B981; color: #FFF; }
+    .badge.hls { background: rgba(99, 102, 241, 0.2); color: #818CF8; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge.dash { background: rgba(245, 158, 11, 0.2); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge.media { background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge.youtube { background: rgba(239, 68, 68, 0.2); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge.instagram { background: rgba(236, 72, 153, 0.2); color: #F472B6; border: 1px solid rgba(236, 72, 153, 0.3); }
+    .badge.page { background: rgba(107, 114, 128, 0.2); color: #D1D5DB; border: 1px solid rgba(107, 114, 128, 0.3); }
+
+    /* Collapsible Details Drawer */
+    .video-details {
+      display: none;
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid var(--border-color);
+      padding: 12px;
+    }
+    .video-details.active {
+      display: block;
+    }
+    .details-row {
+      font-size: 10px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+    .details-row strong {
+      color: var(--text-primary);
+    }
     
-    .controls {
-      margin-bottom: 12px;
-    }
-    select {
-      width: 100%;
-      background: #12121C;
-      color: #E8E8EF;
-      border: 1px solid #333350;
-      padding: 6px 8px;
-      border-radius: 6px;
-      outline: none;
-      font-size: 12px;
-    }
-    .actions {
+    .action-controls {
       display: flex;
       gap: 8px;
+      margin-top: 10px;
     }
-    button {
+    select {
       flex: 1;
-      border: none;
-      padding: 9px;
+      background: #111827;
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
+      padding: 6px 8px;
+      font-size: 11px;
+      outline: none;
+    }
+    .btn-action {
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
       cursor: pointer;
+      border: none;
       transition: all 0.2s;
     }
-    .btn-download {
-      background: #6366F1;
-      color: white;
+    .btn-action.primary {
+      background-image: var(--accent-grad);
+      color: #FFF;
     }
-    .btn-download:hover {
-      background: #818CF8;
+    .btn-action.primary:hover {
+      opacity: 0.9;
       transform: translateY(-1px);
     }
-    .btn-queue {
-      background: #1E1E2E;
-      border: 1px solid #333350;
-      color: #E8E8EF;
+    .btn-action.secondary {
+      background: rgba(255,255,255,0.05);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
     }
-    .btn-queue:hover {
-      background: #2A2A3E;
+    .btn-action.secondary:hover {
+      background: rgba(255,255,255,0.1);
     }
+    .btn-action.copy {
+      padding: 6px 8px;
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+    .btn-action.copy:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .msg-feedback {
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 6px;
+      text-align: center;
+    }
+    .msg-feedback.success { color: #34D399; }
+    .msg-feedback.error { color: #F87171; }
+
+    /* Empty States */
     .empty-state {
       text-align: center;
       padding: 40px 20px;
-      color: #8B8BA3;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .empty-state-icon {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    /* List of Excluded Sites */
+    .excluded-list {
+      max-height: 150px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.15);
+      margin-top: 8px;
+    }
+    .excluded-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      font-size: 11px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .excluded-item:last-child {
+      border-bottom: none;
+    }
+    .btn-remove-site {
+      background: transparent;
+      border: none;
+      color: #F87171;
+      cursor: pointer;
       font-size: 13px;
     }
-    .msg {
-      font-size: 11px;
-      margin-top: 8px;
+    .btn-remove-site:hover {
+      opacity: 0.8;
+    }
+    
+    .footer-warning {
+      background: rgba(239, 68, 68, 0.05);
+      border-top: 1px solid rgba(239, 68, 68, 0.15);
+      padding: 10px 16px;
       text-align: center;
+      color: #F87171;
+      font-size: 11px;
       font-weight: 600;
     }
-    .msg.success { color: #4ade80; }
-    .msg.error { color: #f87171; }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="title">Video Downloader Pro</div>
-    <div id="appStatus" class="status">App Offline</div>
+    <div class="logo-container">
+      <span style="font-size: 18px;">📡</span>
+      <div class="logo-text">Video Downloader Pro</div>
+    </div>
+    <div id="appStatus" class="status-badge">App Checking...</div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-streams">Detected Media</button>
+    <button class="tab-btn" id="tab-settings">Preferences</button>
   </div>
   
-  <div class="content" id="videoList">
-    <div class="empty-state">
-      <div style="font-size: 24px; margin-bottom: 10px;">🔍</div>
-      Searching for videos on this page...
+  <!-- STREAMS PANE -->
+  <div class="content-pane active" id="pane-streams">
+    <div class="batch-actions" id="batch-row" style="display: none;">
+      <button class="btn-batch" id="btn-batch-queue">💾 Queue All</button>
+      <button class="btn-batch" id="btn-batch-dl" style="background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3); color: #A5B4FC;">⬇ Download All</button>
+    </div>
+    
+    <div id="videoList">
+      <div class="empty-state">
+        <div class="empty-state-icon">🎬</div>
+        Scanning current tab for videos...
+      </div>
     </div>
   </div>
 
-  <div id="app-offline-error" style="display: none; padding: 12px; text-align: center; color: #f87171; font-size: 12px; font-weight: 600; border-top: 1px solid #2A2A3E; background: rgba(248, 113, 113, 0.05);">
-    Desktop app is not running. Please start Video Downloader Pro.
+  <!-- PREFERENCES PANE -->
+  <div class="content-pane" id="pane-settings">
+    <div class="panel">
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Automatic Download Capture</div>
+          <div class="toggle-sublabel">Intercept matches & send to desktop app</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-intercept" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      
+      <div class="toggle-row" style="margin-top: 14px;">
+        <div>
+          <div class="toggle-label">Capture on current website</div>
+          <div class="toggle-sublabel" id="site-domain-label">Domain Exclusions</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-site-active" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom: 0;">
+      <div class="toggle-label" style="margin-bottom: 4px;">Excluded Websites</div>
+      <div class="toggle-sublabel">Downloads on these websites are never intercepted</div>
+      
+      <div class="excluded-list" id="exclusion-container">
+        <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 10px;">
+          No excluded websites.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-offline-error" style="display: none;" class="footer-warning">
+    Desktop application is offline. Please start Video Downloader Pro.
   </div>
 
   <script src="popup.js"></script>
