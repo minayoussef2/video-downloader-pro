@@ -6,10 +6,15 @@
 
   // Track the Control (Ctrl) key press state and store it in chrome.storage.local
   function updateCtrlState(isPressed) {
-    chrome.storage.local.set({
-      ctrlPressed: isPressed,
-      ctrlPressedTime: isPressed ? Date.now() : 0
-    });
+    if (!chrome.runtime?.id) return;
+    try {
+      chrome.storage.local.set({
+        ctrlPressed: isPressed,
+        ctrlPressedTime: isPressed ? Date.now() : 0
+      });
+    } catch (e) {
+      // Swallowed context invalidation error
+    }
   }
 
   window.addEventListener('keydown', (e) => {
@@ -139,15 +144,19 @@
   }
 
   function reportToBackground(videos) {
-    if (videos.length > 0) {
-      chrome.runtime.sendMessage({ 
-        action: 'appendStreams', 
-        streams: videos.map(v => ({
-          ...v,
-          referer: window.location.href,
-          tabId: null 
-        }))
-      });
+    if (videos.length > 0 && chrome.runtime?.id) {
+      try {
+        chrome.runtime.sendMessage({ 
+          action: 'appendStreams', 
+          streams: videos.map(v => ({
+            ...v,
+            referer: window.location.href,
+            tabId: null 
+          }))
+        });
+      } catch (e) {
+        // Swallowed context invalidation error
+      }
     }
   }
 

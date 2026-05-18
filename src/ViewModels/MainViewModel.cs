@@ -534,18 +534,18 @@ public class MainViewModel : ViewModelBase
                             item.Title = json["title"]?.ToString() ?? "Unknown";
                             
                         item.ThumbnailUrl = json["thumbnail"]?.ToString() ?? "";
-                        item.Duration = FormatDuration(json["duration"]?.Value<double?>());
+                        item.Duration = FormatDuration((double?)json["duration"]);
                         item.Uploader = json["uploader"]?.ToString() ?? "";
                         
-                        // Parse estimated size
+                        // Parse estimated size safely
                         var formats = json["formats"] as JArray;
                         if (formats != null)
                         {
                             var height = ParseQualityToHeight(quality);
-                            var bestFmt = formats.FirstOrDefault(f => f["height"]?.Value<int>() == height) ?? formats.LastOrDefault();
+                            var bestFmt = formats.FirstOrDefault(f => (int?)f["height"] == height) ?? formats.LastOrDefault();
                             if (bestFmt != null)
                             {
-                                item.EstimatedSize = bestFmt["filesize"]?.Value<long>() ?? bestFmt["filesize_approx"]?.Value<long>() ?? 0;
+                                item.EstimatedSize = (long?)bestFmt["filesize"] ?? (long?)bestFmt["filesize_approx"] ?? 0;
                             }
                         }
 
@@ -554,8 +554,14 @@ public class MainViewModel : ViewModelBase
                         OnPropertyChanged(nameof(TotalSizeSum));
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
+                    try
+                    {
+                        System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Error fetching info for {url}: {ex}\n");
+                    }
+                    catch {}
+
                     System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                     {
                         item.Status = DownloadStatus.Ready;
