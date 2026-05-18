@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Video Downloader Pro</title>
+  <style>
+    body {
+      width: 350px;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0F0F14;
+      color: #E8E8EF;
+    }
+    .header {
+      background-color: #161620;
+      padding: 12px 16px;
+      border-bottom: 1px solid #2A2A3E;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #E8E8EF;
+    }
+    .status {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #333350;
+      color: #8B8BA3;
+    }
+    .status.online {
+      background: #1a6b35;
+      color: #4ade80;
+    }
+    .content {
+      padding: 16px;
+    }
+    .video-item {
+      background: linear-gradient(145deg, #1A1A28, #14141E);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 14px;
+      border: 1px solid #2A2A3E;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .video-thumb {
+      width: 100%;
+      height: 60px;
+      background: #09090F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #2A2A3E;
+    }
+    .type-icon {
+      font-size: 28px;
+    }
+    .video-info {
+      padding: 12px;
+    }
+    .video-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #FFF;
+    }
+    .video-meta {
+      font-size: 11px;
+      color: #8B8BA3;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .type-badge {
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+    .type-badge.hls { background: #6366F1; color: #FFF; }
+    .type-badge.dash { background: #F59E0B; color: #FFF; }
+    .type-badge.media { background: #10B981; color: #FFF; }
+    
+    .controls {
+      margin-bottom: 12px;
+    }
+    select {
+      width: 100%;
+      background: #12121C;
+      color: #E8E8EF;
+      border: 1px solid #333350;
+      padding: 6px 8px;
+      border-radius: 6px;
+      outline: none;
+      font-size: 12px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      flex: 1;
+      border: none;
+      padding: 9px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-download {
+      background: #6366F1;
+      color: white;
+    }
+    .btn-download:hover {
+      background: #818CF8;
+      transform: translateY(-1px);
+    }
+    .btn-queue {
+      background: #1E1E2E;
+      border: 1px solid #333350;
+      color: #E8E8EF;
+    }
+    .btn-queue:hover {
+      background: #2A2A3E;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #8B8BA3;
+      font-size: 13px;
+    }
+    .msg {
+      font-size: 11px;
+      margin-top: 8px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .msg.success { color: #4ade80; }
+    .msg.error { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Video Downloader Pro</div>
+    <div id="appStatus" class="status">App Offline</div>
+  </div>
+  
+  <div class="content" id="videoList">
+    <div class="empty-state">
+      <div style="font-size: 24px; margin-bottom: 10px;">🔍</div>
+      Searching for videos on this page...
+    </div>
+  </div>
+
+  <div id="app-offline-error" style="display: none; padding: 12px; text-align: center; color: #f87171; font-size: 12px; font-weight: 600; border-top: 1px solid #2A2A3E; background: rgba(248, 113, 113, 0.05);">
+    Desktop app is not running. Please start Video Downloader Pro.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
