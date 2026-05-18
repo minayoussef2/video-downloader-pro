@@ -102,3 +102,14 @@ public class StatusToBoolConverter : IValueConverter
     public object ConvertBack(object value, Type t, object parameter, CultureInfo c)
         => throw new NotImplementedException();
 }
+
+/// <summary>Converts non-empty string to Visibility.Visible.</summary>
+public class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type t, object parameter, CultureInfo c)
+    {
+        return !string.IsNullOrWhiteSpace(value as string) ? Visibility.Visible : Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type t, object parameter, CultureInfo c)
+        => throw new NotImplementedException();
+}

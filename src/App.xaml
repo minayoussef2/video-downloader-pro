@@ -11,6 +11,7 @@
             <conv:ProgressToWidthConverter x:Key="ProgressWidth"/>
             <conv:ViewCountConverter x:Key="ViewCount"/>
             <conv:StatusToBoolConverter x:Key="StatusToBool"/>
+            <conv:StringToVisibilityConverter x:Key="StringToVis"/>
 
             <!-- ── Dark Theme Colors ── -->
             <Color x:Key="BgPrimary">#0F0F14</Color>

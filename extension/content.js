@@ -13,9 +13,16 @@
     // Usually passing the page URL is the most reliable method.
     if (!DETECTED_VIDEOS.has(pageUrl)) {
       DETECTED_VIDEOS.set(pageUrl, true);
+      
+      // Better title detection
+      let cleanTitle = document.title;
+      if (pageUrl.includes('youtube.com')) cleanTitle = cleanTitle.replace(/ - YouTube$/, '');
+      if (pageUrl.includes('facebook.com')) cleanTitle = cleanTitle.replace(/ \| Facebook$/, '');
+      if (pageUrl.includes('instagram.com')) cleanTitle = cleanTitle.replace(/ • Instagram photos and videos$/, '');
+
       videos.push({
         url: pageUrl,
-        title: document.title || 'Current Page (yt-dlp auto-detect)',
+        title: cleanTitle || 'Current Page (yt-dlp auto-detect)',
         thumbnail: getPageThumbnail(),
         type: 'page_url',
         platform: getPlatformName(pageUrl)
@@ -36,6 +43,25 @@
           duration: vid.duration ? formatDuration(vid.duration) : ''
         });
       }
+    });
+
+    // 3. Detect embedded videos in <iframe> (YouTube, Vimeo, etc.)
+    document.querySelectorAll('iframe').forEach(iframe => {
+      try {
+        const src = iframe.src;
+        if (src && (src.includes('youtube.com/embed/') || src.includes('player.vimeo.com/video/'))) {
+          if (!DETECTED_VIDEOS.has(src)) {
+            DETECTED_VIDEOS.set(src, true);
+            videos.push({
+              url: src,
+              title: `Embedded Video (${getPlatformName(src)})`,
+              thumbnail: '',
+              type: 'iframe_embed',
+              platform: getPlatformName(src)
+            });
+          }
+        }
+      } catch (e) {}
     });
 
     return videos;

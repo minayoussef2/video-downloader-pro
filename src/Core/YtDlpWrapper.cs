@@ -135,7 +135,7 @@ public class YtDlpWrapper
         var psi = new ProcessStartInfo
         {
             FileName = ytdlp,
-            Arguments = string.Join(" ", args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a)),
+            Arguments = string.Join(" ", args), // Args are already quoted correctly in the list
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,

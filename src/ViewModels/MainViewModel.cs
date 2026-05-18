@@ -158,19 +158,16 @@ public class MainViewModel : ViewModelBase
         var urls = ParseUrls(UrlInput);
         if (urls.Count == 0) return;
 
-        IsAnalyzing = true;
-        StatusText = $"Analyzing {urls.Count} URL(s)…";
+        UrlInput = "";
+        StatusText = $"Adding {urls.Count} URL(s)...";
 
         foreach (var url in urls)
         {
-            await AddSingleUrlAsync(url, DownloadQueue);
+            // Don't await here, let it run in background so UI updates immediately
+            _ = AddSingleUrlAsync(url, DownloadQueue);
         }
 
-        UrlInput = "";
-        IsAnalyzing = false;
-        StatusText = $"Queue: {DownloadQueue.Count} item(s)";
         OnPropertyChanged(nameof(QueueCount));
-        OnPropertyChanged(nameof(TotalSizeSum));
     }
 
     private async Task AddHlsUrlsAsync(object? _)
@@ -194,82 +191,106 @@ public class MainViewModel : ViewModelBase
 
     private async Task AddSingleUrlAsync(string url, ObservableCollection<DownloadItem> queue, bool isHls = false)
     {
+        // Add immediate placeholder
+        var item = new DownloadItem
+        {
+            Url = url,
+            Referer = isHls ? HlsReferer : "",
+            Title = "Detecting Video...",
+            SelectedQuality = Settings.DefaultQuality,
+            SelectedFormat = Settings.DefaultFormat,
+            Status = DownloadStatus.Queued,
+            StatusText = "Analyzing URL...",
+        };
+
+        System.Windows.Application.Current?.Dispatcher.Invoke(() => queue.Add(item));
+
         var wrapper = new YtDlpWrapper();
 
         try
         {
-            // First check if it's a playlist
             var referer = isHls ? HlsReferer : null;
             var infoJson = await wrapper.GetInfoAsync(url, flatPlaylist: true, referer: referer);
             var lines = infoJson.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
+            if (lines.Length == 0) throw new Exception("No info returned");
+
+            bool first = true;
             foreach (var line in lines)
             {
                 try
                 {
                     var json = JObject.Parse(line.Trim());
-                    var item = new DownloadItem
+                    
+                    if (first)
                     {
-                        Url = json["webpage_url"]?.ToString() ?? json["url"]?.ToString() ?? url,
-                        Title = json["title"]?.ToString() ?? "Unknown",
-                        Uploader = json["uploader"]?.ToString() ?? json["channel"]?.ToString() ?? "",
-                        ThumbnailUrl = json["thumbnail"]?.ToString() ?? "",
-                        Duration = FormatDuration(json["duration"]?.Value<double?>()),
-                        ViewCount = json["view_count"]?.Value<long>() ?? 0,
-                        SelectedQuality = Settings.DefaultQuality,
-                        SelectedFormat = Settings.DefaultFormat,
-                        Status = DownloadStatus.Ready,
-                        StatusText = "Ready to download",
-                    };
+                        // Update the existing placeholder for the first video
+                        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                        {
+                            item.Url = json["webpage_url"]?.ToString() ?? json["url"]?.ToString() ?? url;
+                            item.Title = json["title"]?.ToString() ?? "Unknown";
+                            item.Uploader = json["uploader"]?.ToString() ?? json["channel"]?.ToString() ?? "";
+                            item.ThumbnailUrl = json["thumbnail"]?.ToString() ?? "";
+                            item.Duration = FormatDuration(json["duration"]?.Value<double?>());
+                            item.ViewCount = json["view_count"]?.Value<long>() ?? 0;
+                            item.Status = DownloadStatus.Ready;
+                            item.StatusText = "Ready to download";
 
-                    // Parse available qualities from formats
-                    if (json["formats"] is JArray formats)
-                    {
-                        var qualities = ParseQualities(formats);
-                        if (qualities.Count > 1)
-                            item.AvailableQualities = qualities;
-
-                        item.FormatSizes = ParseFormatSizes(formats, json["duration"]?.Value<double?>());
-                        UpdateEstimatedSize(item);
+                            if (json["formats"] is JArray formats)
+                            {
+                                var qualities = ParseQualities(formats);
+                                if (qualities.Count > 1) item.AvailableQualities = qualities;
+                                item.FormatSizes = ParseFormatSizes(formats, json["duration"]?.Value<double?>());
+                                UpdateEstimatedSize(item);
+                            }
+                            OnPropertyChanged(nameof(TotalSizeSum));
+                        });
+                        first = false;
                     }
                     else
                     {
-                        // Fetch qualities separately
-                        _ = Task.Run(async () =>
+                        // Add new items if it's a playlist
+                        var newItem = new DownloadItem
                         {
-                            var qs = await wrapper.GetAvailableQualitiesAsync(item.Url, referer: referer);
-                            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-                            {
-                                item.AvailableQualities = qs;
-                                item.Status = DownloadStatus.Ready;
-                                item.StatusText = "Ready to download";
-                            });
+                            Url = json["webpage_url"]?.ToString() ?? json["url"]?.ToString() ?? url,
+                            Title = json["title"]?.ToString() ?? "Unknown",
+                            Uploader = json["uploader"]?.ToString() ?? json["channel"]?.ToString() ?? "",
+                            ThumbnailUrl = json["thumbnail"]?.ToString() ?? "",
+                            Duration = FormatDuration(json["duration"]?.Value<double?>()),
+                            ViewCount = json["view_count"]?.Value<long>() ?? 0,
+                            SelectedQuality = Settings.DefaultQuality,
+                            SelectedFormat = Settings.DefaultFormat,
+                            Status = DownloadStatus.Ready,
+                            StatusText = "Ready to download",
+                        };
+
+                        if (json["formats"] is JArray formats)
+                        {
+                            var qualities = ParseQualities(formats);
+                            if (qualities.Count > 1) newItem.AvailableQualities = qualities;
+                            newItem.FormatSizes = ParseFormatSizes(formats, json["duration"]?.Value<double?>());
+                            UpdateEstimatedSize(newItem);
+                        }
+
+                        System.Windows.Application.Current?.Dispatcher.Invoke(() => 
+                        {
+                            queue.Add(newItem);
+                            OnPropertyChanged(nameof(TotalSizeSum));
                         });
                     }
-
-                    System.Windows.Application.Current?.Dispatcher.Invoke(() => 
-                    {
-                        queue.Add(item);
-                        OnPropertyChanged(nameof(TotalSizeSum));
-                    });
                 }
-                catch { /* Skip unparseable lines */ }
+                catch { }
             }
         }
         catch (Exception)
         {
-            // Add with error status but still downloadable
-            var item = new DownloadItem
+            // Update the placeholder with error info but keep it downloadable
+            System.Windows.Application.Current?.Dispatcher.Invoke(() => 
             {
-                Url = url,
-                Referer = isHls ? HlsReferer : "",
-                Title = url.Length > 60 ? url[..60] + "…" : url,
-                SelectedQuality = Settings.DefaultQuality,
-                SelectedFormat = Settings.DefaultFormat,
-                Status = DownloadStatus.Ready,
-                StatusText = "Could not fetch info — will try download",
-            };
-            System.Windows.Application.Current?.Dispatcher.Invoke(() => queue.Add(item));
+                item.Title = url.Length > 60 ? url[..60] + "…" : url;
+                item.Status = DownloadStatus.Ready;
+                item.StatusText = "Ready (Info fetch failed)";
+            });
         }
     }
 
@@ -469,21 +490,22 @@ public class MainViewModel : ViewModelBase
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(async () =>
         {
-            // Better HLS detection: check both type and URL extension
+            // Robust HLS/DASH/Direct detection
+            string urlLower = url.ToLower();
             bool isHls = type == "HLS" || type == "DASH" || type == "MSS" || 
-                         url.Contains(".m3u8", StringComparison.OrdinalIgnoreCase) || 
-                         url.Contains(".mpd", StringComparison.OrdinalIgnoreCase);
+                         urlLower.Contains(".m3u8") || urlLower.Contains(".mpd") || urlLower.Contains(".isml") ||
+                         urlLower.Contains("manifest") || urlLower.Contains("playlist");
 
             var item = new DownloadItem
             {
                 Url = url,
                 Referer = referer,
-                Title = string.IsNullOrWhiteSpace(title) ? "Analyzing..." : title,
+                Title = (string.IsNullOrWhiteSpace(title) || title == "Analyzing...") ? "Detecting Video..." : title,
                 SelectedQuality = quality,
                 SelectedFormat = Settings.DefaultFormat,
                 Source = DownloadSource.Extension,
                 Status = DownloadStatus.Queued,
-                StatusText = "Added from extension",
+                StatusText = "Fetching info...",
             };
 
             if (isHls)
@@ -558,7 +580,9 @@ public class MainViewModel : ViewModelBase
     private static List<string> ParseUrls(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return new();
-        return input.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        
+        // Support newlines, commas, and spaces as separators
+        return input.Split(new[] { '\n', '\r', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(u => u.Trim())
             .Where(u => u.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             .Distinct()

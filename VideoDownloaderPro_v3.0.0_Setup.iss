@@ -38,9 +38,9 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=D:\Mina\Antigravity\youtube-downloader-pro
+OutputDir=D:\Mina\Antigravity\video-downloader-pro
 OutputBaseFilename=VideoDownloaderPro_v3.0.0_Setup
-SetupIconFile=D:\Mina\Antigravity\youtube-downloader-pro\src\icon.ico
+SetupIconFile=D:\Mina\Antigravity\video-downloader-pro\src\icon.ico
 SolidCompression=yes
 WizardStyle=modern dynamic
 
@@ -48,12 +48,12 @@ WizardStyle=modern dynamic
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\Mina\Antigravity\youtube-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\Mina\Antigravity\youtube-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\Mina\Antigravity\youtube-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\ffprobe.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\Mina\Antigravity\youtube-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\yt-dlp.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\Mina\Antigravity\youtube-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\extension\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "D:\Mina\Antigravity\youtube-downloader-pro\src\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Mina\Antigravity\video-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Mina\Antigravity\video-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Mina\Antigravity\video-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\ffprobe.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Mina\Antigravity\video-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\yt-dlp.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Mina\Antigravity\video-downloader-pro\src\bin\Release\net8.0-windows\win-x64\publish\extension\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "D:\Mina\Antigravity\video-downloader-pro\src\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]
