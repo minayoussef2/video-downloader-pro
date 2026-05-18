@@ -45,7 +45,8 @@
     // 1. Core Page Scraper - yt-dlp native extraction is the ultimate fallback!
     // Since yt-dlp has custom extractors for 1000+ sites (YouTube, Instagram, Facebook),
     // presenting the current page URL is by far the most reliable detection method.
-    if (!DETECTED_VIDEOS.has(pageUrl)) {
+    // Wrap with top-level window check to avoid background iframes (like auth/ad frames) from cluttering the list
+    if (window === window.top && !DETECTED_VIDEOS.has(pageUrl)) {
       DETECTED_VIDEOS.set(pageUrl, true);
       
       let cleanTitle = document.title;
@@ -53,12 +54,13 @@
       if (pageUrl.includes('facebook.com')) cleanTitle = cleanTitle.replace(/ \| Facebook$/, '');
       if (pageUrl.includes('instagram.com')) cleanTitle = cleanTitle.replace(/ • Instagram photos and videos$/, '');
 
+      const platform = getPlatformName(pageUrl);
       videos.push({
         url: pageUrl,
-        title: cleanTitle || 'Current Page (yt-dlp auto-detect)',
+        title: cleanTitle || `Current Page (${platform} auto-detect)`,
         thumbnail: getPageThumbnail(),
-        type: 'Page',
-        platform: getPlatformName(pageUrl)
+        type: platform,
+        platform: platform
       });
     }
 

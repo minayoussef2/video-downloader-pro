@@ -486,7 +486,7 @@ public class MainViewModel : ViewModelBase
 
     // ── Extension Integration ────────────────────────────────────────────────
 
-    private void OnExtensionDownloadRequest(string url, string quality, string action, string type, string referer, string title)
+    private void OnExtensionDownloadRequest(string url, string quality, string action, string type, string referer, string title, string thumbnail)
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(async () =>
         {
@@ -506,6 +506,7 @@ public class MainViewModel : ViewModelBase
                 Source = DownloadSource.Extension,
                 Status = DownloadStatus.Queued,
                 StatusText = "Fetching info...",
+                ThumbnailUrl = thumbnail ?? ""
             };
 
             if (isHls)

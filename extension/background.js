@@ -30,7 +30,7 @@ async function checkAppStatus() {
 }
 
 // Send download request to desktop app
-async function sendToApp(url, quality, action, type, referer, title) {
+async function sendToApp(url, quality, action, type, referer, title, thumbnail) {
   try {
     const endpoint = action === 'download' ? '/download' : '/queue';
     const res = await fetch(`${APP_URL}${endpoint}`, {
@@ -44,7 +44,8 @@ async function sendToApp(url, quality, action, type, referer, title) {
         quality, 
         type: type || 'Page', 
         referer: referer || '',
-        title: title || ''
+        title: title || '',
+        thumbnail: thumbnail || ''
       })
     });
     return await res.json();
@@ -138,6 +139,15 @@ chrome.webRequest.onHeadersReceived.addListener(
     let type = null;
     const url = details.url.toLowerCase();
     
+    const initiator = details.initiator ? details.initiator.toLowerCase() : '';
+    // Ignore all background network sniffing when on YouTube or Instagram.
+    // They are officially supported by yt-dlp, so showing CDN chunks or media fragments is useless and clutters the UI.
+    if (url.includes('youtube.com') || url.includes('googlevideo.com') || 
+        url.includes('instagram.com') || url.includes('cdninstagram.com') ||
+        initiator.includes('youtube.com') || initiator.includes('instagram.com')) {
+      return;
+    }
+    
     // Check Content-Type header
     const ctHeader = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type');
     const clHeader = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-length');
@@ -172,8 +182,6 @@ chrome.webRequest.onHeadersReceived.addListener(
       if (url.includes('.m3u8')) type = 'HLS';
       else if (url.includes('.mpd')) type = 'DASH';
       else if (url.includes('.ism/manifest')) type = 'MSS';
-      else if (url.includes('googlevideo.com/videoplayback')) type = 'YouTube';
-      else if ((url.includes('instagram.com') || url.includes('cdninstagram.com')) && url.includes('/v/')) type = 'Instagram';
       else {
         // Direct media extensions
         const mediaExtensions = ['.mp4', '.mkv', '.webm', '.ts', '.flv', '.avi', '.mov', '.mp3', '.m4a', '.wav', '.ogg'];
@@ -246,7 +254,7 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
 
   // Forward details to desktop application to download instantly
   let title = downloadItem.filename || 'Downloaded File';
-  sendToApp(downloadItem.url, 'Best', 'download', 'Direct File', downloadItem.referrer, title);
+  sendToApp(downloadItem.url, 'Best', 'download', 'Direct File', downloadItem.referrer, title, '');
 });
 
 // 4. PORT & GENERAL COMMUNICATIONS INTERFACE
@@ -256,7 +264,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.action === 'sendToApp') {
-    sendToApp(msg.url, msg.quality, msg.downloadAction, msg.type, msg.referer, msg.title).then(sendResponse);
+    sendToApp(msg.url, msg.quality, msg.downloadAction, msg.type, msg.referer, msg.title, msg.thumbnail).then(sendResponse);
     return true;
   }
   if (msg.action === 'getSniffedStreams') {

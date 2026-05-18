@@ -18,9 +18,9 @@ public class ExtensionServer : IDisposable
 
     /// <summary>
     /// Fired when the extension sends a download request.
-    /// Parameters: url, quality, action, type, referer, title
+    /// Parameters: url, quality, action, type, referer, title, thumbnail
     /// </summary>
-    public event Action<string, string, string, string, string, string>? OnDownloadRequest;
+    public event Action<string, string, string, string, string, string, string>? OnDownloadRequest;
 
     public bool IsRunning => _isRunning;
 
@@ -111,12 +111,12 @@ public class ExtensionServer : IDisposable
                     {
                         using var reader = new System.IO.StreamReader(request.InputStream, System.Text.Encoding.UTF8);
                         var body = await reader.ReadToEndAsync();
-                        var data = JsonConvert.DeserializeAnonymousType(body, new { url = "", quality = "Best", type = "Page", referer = "", title = "" });
+                        var data = JsonConvert.DeserializeAnonymousType(body, new { url = "", quality = "Best", type = "Page", referer = "", title = "", thumbnail = "" });
 
                         if (!string.IsNullOrWhiteSpace(data?.url))
                         {
                             var action = request.Url.AbsolutePath == "/download" ? "download" : "queue";
-                            OnDownloadRequest?.Invoke(data.url, data.quality ?? "Best", action, data.type ?? "Page", data.referer ?? "", data.title ?? "");
+                            OnDownloadRequest?.Invoke(data.url, data.quality ?? "Best", action, data.type ?? "Page", data.referer ?? "", data.title ?? "", data.thumbnail ?? "");
                             responseBody = JsonConvert.SerializeObject(new { success = true, message = $"URL {action}d" });
                         }
                         else

@@ -233,14 +233,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Determine file details icon
       let typeIcon = '🎬';
       if (vid.type === 'HLS' || vid.type === 'DASH' || vid.type === 'MSS') typeIcon = '📡';
-      else if (vid.type === 'Page') typeIcon = '📄';
+      else if (vid.type === 'Page' || vid.type === 'YouTube' || vid.type === 'Instagram' || vid.type === 'Facebook') typeIcon = '📄';
       
       // Show file size indicator next to domain if present
       const sizeIndicator = vid.size ? ` • 📦 ${vid.size}` : '';
 
+      // Determine file details icon or thumbnail image
+      let thumbnailHtml = `<div class="video-thumb">${typeIcon}</div>`;
+      if (vid.thumbnail) {
+        thumbnailHtml = `<img class="video-thumb" src="${vid.thumbnail}" style="object-fit: cover;" onerror="this.outerHTML='<div class=&quot;video-thumb&quot;>${typeIcon}</div>'">`;
+      }
+
       item.innerHTML = `
         <div class="video-header-row" id="header-${idx}">
-          <div class="video-thumb">${typeIcon}</div>
+          ${thumbnailHtml}
           <div class="video-meta-block">
             <div class="video-title" title="${vid.title}">${vid.title}</div>
             <div class="video-sub-meta">
@@ -291,8 +297,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       if (!isDash) {
-        document.getElementById(`btn-q-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'queue', vid.type, vid.referer, vid.title));
-        document.getElementById(`btn-dl-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'download', vid.type, vid.referer, vid.title));
+        document.getElementById(`btn-q-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'queue', vid.type, vid.referer, vid.title, vid.thumbnail));
+        document.getElementById(`btn-dl-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'download', vid.type, vid.referer, vid.title, vid.thumbnail));
         document.getElementById(`btn-copy-${idx}`).addEventListener('click', () => {
           navigator.clipboard.writeText(vid.url);
           const msg = document.getElementById(`msg-${idx}`);
@@ -305,7 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 7. Single Download Request Dispatcher
-  function sendAction(url, idx, action, type, referer, title) {
+  function sendAction(url, idx, action, type, referer, title, thumbnail) {
     const msgEl = document.getElementById(`msg-${idx}`);
     const quality = document.getElementById(`quality-${idx}`).value;
 
@@ -318,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     msgEl.textContent = 'Sending to app...';
     msgEl.className = 'msg-feedback';
 
-    chrome.runtime.sendMessage({ action: 'sendToApp', url, quality, downloadAction: action, type, referer, title }, (res) => {
+    chrome.runtime.sendMessage({ action: 'sendToApp', url, quality, downloadAction: action, type, referer, title, thumbnail }, (res) => {
       if (res && res.success) {
         msgEl.textContent = 'Success! Added to Queue.';
         msgEl.className = 'msg-feedback success';
@@ -352,7 +358,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         downloadAction: action, 
         type: vid.type, 
         referer: vid.referer || activeTabUrl, 
-        title: vid.title 
+        title: vid.title,
+        thumbnail: vid.thumbnail
       }, (res) => {
         if (res && res.success) {
           successCount++;
