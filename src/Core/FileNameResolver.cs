@@ -30,23 +30,27 @@ public static class FileNameResolver
     }
 
     /// <summary>
-    /// Returns a unique file path. If "video.mp4" exists, returns "video (1).mp4", etc.
+    /// Returns a unique file path. If "video.mp4" exists or is reserved, returns "video (1).mp4", etc.
     /// </summary>
-    public static string GetUniqueFilePath(string directory, string filename, string extension)
+    public static string GetUniqueFilePath(string directory, string filename, string extension, System.Collections.Generic.IEnumerable<string>? reservedPaths = null)
     {
         var sanitizedName = Sanitize(filename);
         var ext = extension.StartsWith(".") ? extension : $".{extension}";
 
         var fullPath = Path.Combine(directory, $"{sanitizedName}{ext}");
 
-        if (!File.Exists(fullPath))
+        var reservedSet = reservedPaths != null 
+            ? new System.Collections.Generic.HashSet<string>(reservedPaths, System.StringComparer.OrdinalIgnoreCase) 
+            : new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+
+        if (!File.Exists(fullPath) && !reservedSet.Contains(fullPath))
             return fullPath;
 
         int counter = 1;
         while (true)
         {
             fullPath = Path.Combine(directory, $"{sanitizedName} ({counter}){ext}");
-            if (!File.Exists(fullPath))
+            if (!File.Exists(fullPath) && !reservedSet.Contains(fullPath))
                 return fullPath;
             counter++;
 

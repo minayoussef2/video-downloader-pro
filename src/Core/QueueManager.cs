@@ -11,6 +11,7 @@ namespace VideoDownloaderPro.Core;
 public class QueueManager
 {
     private readonly ConcurrentDictionary<string, (DownloadItem Item, YtDlpWrapper Wrapper)> _activeDownloads = new();
+    private readonly ConcurrentDictionary<string, bool> _reservedPaths = new(System.StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _concurrencySemaphore;
     private readonly CancellationTokenSource _cts = new();
     private int _maxConcurrent;
@@ -43,6 +44,7 @@ public class QueueManager
         // Wait for a slot
         await _concurrencySemaphore.WaitAsync(_cts.Token);
 
+        string? reservedPath = null;
         try
         {
             if (item.Status == DownloadStatus.Cancelled) return;
@@ -62,7 +64,9 @@ public class QueueManager
             var title = string.IsNullOrWhiteSpace(item.Title) || item.Title == "Analyzing…"
                 ? "video" : item.Title;
             var ext = GetExtension(item.SelectedFormat, item.SelectedQuality);
-            var outputPath = FileNameResolver.GetUniqueFilePath(outputDir, title, ext);
+            var outputPath = FileNameResolver.GetUniqueFilePath(outputDir, title, ext, _reservedPaths.Keys);
+            reservedPath = outputPath;
+            _reservedPaths[outputPath] = true;
 
             // Use yt-dlp's template but with our resolved filename base
             var outputTemplate = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(outputPath) + ".%(ext)s");
@@ -122,6 +126,10 @@ public class QueueManager
         }
         finally
         {
+            if (reservedPath != null)
+            {
+                _reservedPaths.TryRemove(reservedPath, out _);
+            }
             _concurrencySemaphore.Release();
         }
     }
