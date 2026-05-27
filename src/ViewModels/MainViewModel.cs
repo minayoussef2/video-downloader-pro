@@ -93,6 +93,11 @@ public class MainViewModel : ViewModelBase
     public MainViewModel()
     {
         var settings = SettingsService.Instance.Settings;
+        _globalQuality = settings.DefaultQuality;
+        _globalFormat = settings.DefaultFormat;
+        _globalHlsQuality = settings.DefaultQuality;
+        _globalHlsFormat = settings.DefaultFormat;
+
         _queueManager = new QueueManager(settings.MaxConcurrentDownloads);
 
         // Extension server - Forcing 18888 to resolve stubborn port issues
@@ -104,12 +109,20 @@ public class MainViewModel : ViewModelBase
         {
             System.Windows.Application.Current?.Dispatcher.Invoke(UpdateOverallProgress);
         };
+        _queueManager.OnDownloadStarted += (item) =>
+        {
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            });
+        };
         _queueManager.OnDownloadCompleted += (item, result) =>
         {
             System.Windows.Application.Current?.Dispatcher.Invoke(() =>
             {
                 UpdateOverallProgress();
                 RefreshHistory();
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
             });
         };
 
@@ -121,10 +134,10 @@ public class MainViewModel : ViewModelBase
         PauseAllCommand = new RelayCommand(PauseAll);
         CancelAllCommand = new RelayCommand(CancelAll);
         ClearAllCommand = new RelayCommand(ClearAll);
-        DownloadItemCommand = new AsyncRelayCommand(DownloadItemAsync);
-        PauseItemCommand = new RelayCommand(PauseItem);
-        ResumeItemCommand = new RelayCommand(ResumeItem);
-        CancelItemCommand = new RelayCommand(CancelItem);
+        DownloadItemCommand = new RelayCommand(DownloadItem, CanDownloadItem);
+        PauseItemCommand = new RelayCommand(PauseItem, CanPauseItem);
+        ResumeItemCommand = new RelayCommand(ResumeItem, CanResumeItem);
+        CancelItemCommand = new RelayCommand(CancelItem, CanCancelItem);
         RemoveItemCommand = new RelayCommand(RemoveItem);
         NavigateCommand = new RelayCommand(Navigate);
         SaveSettingsCommand = new RelayCommand(SaveSettings);
@@ -197,8 +210,8 @@ public class MainViewModel : ViewModelBase
             Url = url,
             Referer = isHls ? HlsReferer : "",
             Title = "Detecting Video...",
-            SelectedQuality = Settings.DefaultQuality,
-            SelectedFormat = Settings.DefaultFormat,
+            SelectedQuality = isHls ? GlobalHlsQuality : GlobalQuality,
+            SelectedFormat = isHls ? GlobalHlsFormat : GlobalFormat,
             Status = DownloadStatus.Queued,
             StatusText = "Analyzing URL...",
         };
@@ -239,7 +252,14 @@ public class MainViewModel : ViewModelBase
                             if (json["formats"] is JArray formats)
                             {
                                 var qualities = ParseQualities(formats);
-                                if (qualities.Count > 1) item.AvailableQualities = qualities;
+                                if (qualities.Count > 1) 
+                                {
+                                    item.AvailableQualities = qualities;
+                                    if (!qualities.Contains(item.SelectedQuality))
+                                    {
+                                        item.SelectedQuality = qualities.Contains("Best") ? "Best" : (qualities.FirstOrDefault() ?? "Best");
+                                    }
+                                }
                                 item.FormatSizes = ParseFormatSizes(formats, json["duration"]?.Value<double?>());
                                 UpdateEstimatedSize(item);
                             }
@@ -258,8 +278,8 @@ public class MainViewModel : ViewModelBase
                             ThumbnailUrl = json["thumbnail"]?.ToString() ?? "",
                             Duration = FormatDuration(json["duration"]?.Value<double?>()),
                             ViewCount = json["view_count"]?.Value<long>() ?? 0,
-                            SelectedQuality = Settings.DefaultQuality,
-                            SelectedFormat = Settings.DefaultFormat,
+                            SelectedQuality = isHls ? GlobalHlsQuality : GlobalQuality,
+                            SelectedFormat = isHls ? GlobalHlsFormat : GlobalFormat,
                             Status = DownloadStatus.Ready,
                             StatusText = "Ready to download",
                         };
@@ -267,7 +287,14 @@ public class MainViewModel : ViewModelBase
                         if (json["formats"] is JArray formats)
                         {
                             var qualities = ParseQualities(formats);
-                            if (qualities.Count > 1) newItem.AvailableQualities = qualities;
+                            if (qualities.Count > 1)
+                            {
+                                newItem.AvailableQualities = qualities;
+                                if (!qualities.Contains(newItem.SelectedQuality))
+                                {
+                                    newItem.SelectedQuality = qualities.Contains("Best") ? "Best" : (qualities.FirstOrDefault() ?? "Best");
+                                }
+                            }
                             newItem.FormatSizes = ParseFormatSizes(formats, json["duration"]?.Value<double?>());
                             UpdateEstimatedSize(newItem);
                         }
@@ -312,7 +339,7 @@ public class MainViewModel : ViewModelBase
         UpdateOverallProgress();
     }
 
-    private async Task DownloadItemAsync(object? param)
+    private void DownloadItem(object? param)
     {
         if (param is not DownloadItem item) return;
         _queueManager.SetMaxConcurrent(Settings.MaxConcurrentDownloads);
@@ -320,23 +347,67 @@ public class MainViewModel : ViewModelBase
 
         var referer = HlsQueue.Contains(item) ? item.Referer : null;
         if (string.IsNullOrEmpty(referer) && HlsQueue.Contains(item)) referer = HlsReferer;
-        await _queueManager.StartDownloadAsync(item, referer);
-        UpdateOverallProgress();
+        
+        _ = Task.Run(async () =>
+        {
+            await _queueManager.StartDownloadAsync(item, referer);
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                UpdateOverallProgress();
+                System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+            });
+        });
+    }
+
+    private bool CanDownloadItem(object? param)
+    {
+        if (param is not DownloadItem item) return false;
+        return item.Status is DownloadStatus.Ready or DownloadStatus.Failed or DownloadStatus.Cancelled;
+    }
+
+    private bool CanPauseItem(object? param)
+    {
+        if (param is not DownloadItem item) return false;
+        return item.Status is DownloadStatus.Downloading;
+    }
+
+    private bool CanResumeItem(object? param)
+    {
+        if (param is not DownloadItem item) return false;
+        return item.Status is DownloadStatus.Paused;
+    }
+
+    private bool CanCancelItem(object? param)
+    {
+        if (param is not DownloadItem item) return false;
+        return item.Status is DownloadStatus.Downloading or DownloadStatus.Paused or DownloadStatus.Queued;
     }
 
     private void PauseItem(object? param)
     {
-        if (param is DownloadItem item) _queueManager.PauseItem(item.Id);
+        if (param is DownloadItem item)
+        {
+            _queueManager.PauseItem(item.Id);
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     private void ResumeItem(object? param)
     {
-        if (param is DownloadItem item) _queueManager.ResumeItem(item.Id);
+        if (param is DownloadItem item)
+        {
+            _queueManager.ResumeItem(item.Id);
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     private void CancelItem(object? param)
     {
-        if (param is DownloadItem item) _queueManager.CancelItem(item.Id);
+        if (param is DownloadItem item)
+        {
+            _queueManager.CancelItem(item.Id);
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     private void RemoveItem(object? param)
@@ -347,6 +418,7 @@ public class MainViewModel : ViewModelBase
             DownloadQueue.Remove(item);
             HlsQueue.Remove(item);
             OnPropertyChanged(nameof(QueueCount));
+            System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }
     }
 
@@ -502,7 +574,7 @@ public class MainViewModel : ViewModelBase
                 Referer = referer,
                 Title = (string.IsNullOrWhiteSpace(title) || title == "Analyzing...") ? "Detecting Video..." : title,
                 SelectedQuality = quality,
-                SelectedFormat = Settings.DefaultFormat,
+                SelectedFormat = isHls ? GlobalHlsFormat : GlobalFormat,
                 Source = DownloadSource.Extension,
                 Status = DownloadStatus.Queued,
                 StatusText = "Fetching info...",
@@ -530,7 +602,7 @@ public class MainViewModel : ViewModelBase
                     var json = JObject.Parse(infoJson);
                     System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                     {
-                        if (item.Title == "Analyzing..." || string.IsNullOrWhiteSpace(item.Title))
+                        if (item.Title == "Analyzing..." || string.IsNullOrWhiteSpace(item.Title) || item.Title == "Detecting Video...")
                             item.Title = json["title"]?.ToString() ?? "Unknown";
                             
                         item.ThumbnailUrl = json["thumbnail"]?.ToString() ?? "";
@@ -538,20 +610,25 @@ public class MainViewModel : ViewModelBase
                         item.Uploader = json["uploader"]?.ToString() ?? "";
                         
                         // Parse estimated size safely
-                        var formats = json["formats"] as JArray;
-                        if (formats != null)
+                        if (json["formats"] is JArray formats)
                         {
-                            var height = ParseQualityToHeight(quality);
-                            var bestFmt = formats.FirstOrDefault(f => (int?)f["height"] == height) ?? formats.LastOrDefault();
-                            if (bestFmt != null)
+                            var qualities = ParseQualities(formats);
+                            if (qualities.Count > 1)
                             {
-                                item.EstimatedSize = (long?)bestFmt["filesize"] ?? (long?)bestFmt["filesize_approx"] ?? 0;
+                                item.AvailableQualities = qualities;
+                                if (!qualities.Contains(item.SelectedQuality))
+                                {
+                                    item.SelectedQuality = qualities.Contains("Best") ? "Best" : (qualities.FirstOrDefault() ?? "Best");
+                                }
                             }
+                            item.FormatSizes = ParseFormatSizes(formats, (double?)json["duration"]);
+                            UpdateEstimatedSize(item);
                         }
 
                         item.Status = DownloadStatus.Ready;
                         item.StatusText = "Ready to download";
                         OnPropertyChanged(nameof(TotalSizeSum));
+                        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
                     });
                 }
                 catch (Exception ex)
@@ -566,6 +643,7 @@ public class MainViewModel : ViewModelBase
                     {
                         item.Status = DownloadStatus.Ready;
                         item.StatusText = "Ready (info unavailable)";
+                        System.Windows.Input.CommandManager.InvalidateRequerySuggested();
                     });
                 }
             });
@@ -574,7 +652,10 @@ public class MainViewModel : ViewModelBase
             if (action == "download")
             {
                 await Task.Delay(500); // Brief delay for info fetch
-                await _queueManager.StartDownloadAsync(item);
+                if (DownloadItemCommand.CanExecute(item))
+                {
+                    DownloadItemCommand.Execute(item);
+                }
             }
 
             // Navigate to appropriate tab

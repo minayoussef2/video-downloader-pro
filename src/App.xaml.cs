@@ -37,6 +37,7 @@ public partial class App : System.Windows.Application
         }
 
         base.OnStartup(e);
+        this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
         // Check if started minimized (from startup)
         bool startMinimized = e.Args.Contains("--minimized");

@@ -139,6 +139,12 @@ chrome.webRequest.onHeadersReceived.addListener(
     let type = null;
     const url = details.url.toLowerCase();
     
+    // Exclude HLS/DASH fragment requests (segments, range chunks, media fragments)
+    const isFragmentPattern = url.includes('/segment') || url.includes('/fragment') || url.includes('/chunk') || url.includes('range/') || url.includes('.m4s');
+    if (isFragmentPattern) {
+      return;
+    }
+
     // Sniff embedded YouTube videos via iframe requests
     if (url.includes('youtube.com/embed/') || url.includes('youtube-nocookie.com/embed/')) {
       const match = details.url.match(/\/embed\/([a-zA-Z0-9_-]{11})/);
@@ -210,6 +216,17 @@ chrome.webRequest.onHeadersReceived.addListener(
     if (ctHeader) {
       const ct = ctHeader.value.toLowerCase();
       
+      // Ignore HLS .ts fragments (typically video/mp2t MIME type or ends in .ts with size < 5MB)
+      if (ct.includes('video/mp2t') || ct.includes('video/mp2s')) {
+        const isSmallTs = !clHeader || size < 5 * 1024 * 1024;
+        if (isSmallTs) return;
+      }
+
+      if (url.includes('.ts') || url.includes('.ts?')) {
+        const isSmallTs = !clHeader || size < 5 * 1024 * 1024;
+        if (isSmallTs) return;
+      }
+
       // HLS detection
       if (ct.includes('application/vnd.apple.mpegurl') || ct.includes('application/x-mpegurl')) {
         type = 'HLS';
@@ -239,6 +256,11 @@ chrome.webRequest.onHeadersReceived.addListener(
       else {
         // Direct media extensions
         const mediaExtensions = ['.mp4', '.mkv', '.webm', '.ts', '.flv', '.avi', '.mov', '.mp3', '.m4a', '.wav', '.ogg'];
+        // Ignore .ts extension fallback unless we have some other logic to prevent segment floods
+        const isTs = url.split('?')[0].endsWith('.ts');
+        if (isTs) {
+          return;
+        }
         if (mediaExtensions.some(ext => url.split('?')[0].endsWith(ext))) {
           type = 'Media';
         }
@@ -258,7 +280,8 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
   // Read current user preferences
   const prefs = await chrome.storage.local.get(['autoIntercept', 'excludedSites', 'ctrlPressed', 'ctrlPressedTime']);
   
-  if (!prefs.autoIntercept) return;
+  const autoIntercept = prefs.autoIntercept !== false;
+  if (!autoIntercept) return;
 
   // Check if Ctrl key was held down (pressed within the last 1.5 seconds)
   const isCtrlHeld = prefs.ctrlPressed || (Date.now() - (prefs.ctrlPressedTime || 0) < 1500);
@@ -288,8 +311,13 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
     '.srt', '.vtt', '.ass', '.ssa', '.sub'                                         // Subtitles
   ];
 
-  const matchesExt = fileExts.some(ext => urlLower.endsWith(ext) || downloadItem.filename.toLowerCase().endsWith(ext));
-  if (!matchesExt) return;
+  const filename = (downloadItem.filename || '').toLowerCase();
+  const mimeLower = (downloadItem.mime || '').toLowerCase();
+  const matchesMime = mimeLower.startsWith('video/') || mimeLower.startsWith('audio/') || 
+                      mimeLower.includes('subrip') || mimeLower.includes('vtt') || mimeLower.includes('subtitle');
+  const matchesExt = fileExts.some(ext => urlLower.endsWith(ext) || filename.endsWith(ext));
+  
+  if (!matchesExt && !matchesMime) return;
 
   // Check if the Desktop companion app is running
   const appRunning = await checkAppStatus();

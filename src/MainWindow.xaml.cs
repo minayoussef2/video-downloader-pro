@@ -14,7 +14,9 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = (MainViewModel)DataContext;
 
-        Loaded += async (_, _) => await _viewModel.InitializeAsync();
+        // Initialize background services immediately
+        _ = _viewModel.InitializeAsync();
+
         Closing += OnClosing;
 
         SetupTrayIcon();
@@ -74,6 +76,7 @@ public partial class MainWindow : Window
         {
             _trayIcon?.Dispose();
             _viewModel.Cleanup();
+            System.Windows.Application.Current.Shutdown();
         }
     }
 }

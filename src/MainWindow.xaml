@@ -213,9 +213,21 @@
                                                     <Button Style="{StaticResource BtnPrimary}" Content="⬇ Download" Padding="12,5" FontSize="11"
                                                             Command="{Binding DataContext.DownloadItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
-                                                    <Button Style="{StaticResource BtnWarning}" Content="⏸" Padding="8,5" Margin="4,0,0,0" FontSize="11"
-                                                            Command="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"/>
+                                                     <Button Padding="8,5" Margin="4,0,0,0" FontSize="11">
+                                                         <Button.Style>
+                                                             <Style TargetType="Button" BasedOn="{StaticResource BtnWarning}">
+                                                                 <Setter Property="Content" Value="⏸"/>
+                                                                 <Setter Property="Command" Value="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                 <Setter Property="CommandParameter" Value="{Binding}"/>
+                                                                 <Style.Triggers>
+                                                                     <DataTrigger Binding="{Binding Status}" Value="Paused">
+                                                                         <Setter Property="Content" Value="▶"/>
+                                                                         <Setter Property="Command" Value="{Binding DataContext.ResumeItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                     </DataTrigger>
+                                                                 </Style.Triggers>
+                                                             </Style>
+                                                         </Button.Style>
+                                                     </Button>
                                                     <Button Style="{StaticResource BtnDanger}" Content="✕" Padding="8,5" Margin="4,0,0,0" FontSize="11"
                                                             Command="{Binding DataContext.CancelItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
@@ -320,9 +332,21 @@
                                                 <Button Style="{StaticResource BtnPrimary}" Content="⬇ Download" Padding="12,5" FontSize="11"
                                                         Command="{Binding DataContext.DownloadItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Style="{StaticResource BtnWarning}" Content="⏸" Padding="8,5" Margin="4,0,0,0" FontSize="11"
-                                                        Command="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"/>
+                                                 <Button Padding="8,5" Margin="4,0,0,0" FontSize="11">
+                                                     <Button.Style>
+                                                         <Style TargetType="Button" BasedOn="{StaticResource BtnWarning}">
+                                                             <Setter Property="Content" Value="⏸"/>
+                                                             <Setter Property="Command" Value="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                             <Setter Property="CommandParameter" Value="{Binding}"/>
+                                                             <Style.Triggers>
+                                                                 <DataTrigger Binding="{Binding Status}" Value="Paused">
+                                                                     <Setter Property="Content" Value="▶"/>
+                                                                     <Setter Property="Command" Value="{Binding DataContext.ResumeItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                 </DataTrigger>
+                                                             </Style.Triggers>
+                                                         </Style>
+                                                     </Button.Style>
+                                                 </Button>
                                                 <Button Style="{StaticResource BtnDanger}" Content="✕" Padding="8,5" Margin="4,0,0,0" FontSize="11"
                                                         Command="{Binding DataContext.CancelItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
