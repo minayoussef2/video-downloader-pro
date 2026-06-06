@@ -25,6 +25,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeTabId = null;
   let activeTabUrl = '';
   let discoveredVideos = [];
+  let defaultQuality = 'Best'; // Will be synced from desktop app
+
+  // All quality options matching the desktop app
+  const QUALITY_OPTIONS = [
+    { value: 'Best',         label: 'Best Quality' },
+    { value: '8K (4320p)',   label: '8K (4320p)'  },
+    { value: '4K (2160p)',   label: '4K (2160p)'  },
+    { value: '2K (1440p)',   label: '2K (1440p)'  },
+    { value: '1080p',        label: '1080p Full HD' },
+    { value: '720p',         label: '720p HD'     },
+    { value: '480p',         label: '480p SD'     },
+    { value: '360p',         label: '360p'        },
+    { value: '240p',         label: '240p'        },
+    { value: '144p',         label: '144p'        },
+    { value: 'Audio Only',   label: 'Audio Only (MP3)' },
+  ];
+
+  // Build quality <select> option HTML using QUALITY_OPTIONS
+  function buildQualityOptions(selectedValue) {
+    return QUALITY_OPTIONS.map(opt =>
+      `<option value="${opt.value}"${opt.value === selectedValue ? ' selected' : ''}>${opt.label}</option>`
+    ).join('');
+  }
 
   // 1. Direct App Connection Status Monitoring
   async function checkAppDirectly() {
@@ -61,6 +84,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   checkAppDirectly();
   setInterval(checkAppDirectly, 5000);
+
+  // Sync default quality preference from the desktop app settings
+  async function fetchAppSettings() {
+    const urls = ['http://127.0.0.1:18888/settings', 'http://localhost:18888/settings'];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data.defaultQuality) {
+          defaultQuality = data.defaultQuality;
+        }
+        return;
+      } catch {}
+    }
+  }
+  fetchAppSettings();
 
   // 2. Navigation Tab Handlers
   tabStreamsBtn.addEventListener('click', () => {
@@ -261,10 +300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           <div class="action-controls">
             <select id="quality-${idx}" ${isDash ? 'disabled' : ''}>
-              <option value="Best">Best Quality</option>
-              <option value="1080p">1080p</option>
-              <option value="720p">720p</option>
-              <option value="Audio Only">MP3 Audio</option>
+              ${buildQualityOptions(defaultQuality)}
             </select>
           </div>
           

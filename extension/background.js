@@ -2,6 +2,29 @@
 const APP_URL = 'http://127.0.0.1:18888';
 const recentStreams = [];
 
+// Fetch real title/thumbnail from oEmbed APIs for YouTube and Vimeo
+async function fetchOEmbedInfo(watchUrl, platform) {
+  try {
+    let oEmbedUrl = null;
+    if (platform === 'YouTube') {
+      oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(watchUrl)}&format=json`;
+    } else if (platform === 'Vimeo') {
+      oEmbedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(watchUrl)}`;
+    }
+    if (!oEmbedUrl) return null;
+
+    const res = await fetch(oEmbedUrl);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      title: data.title || null,
+      thumbnail: data.thumbnail_url || null
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Default configuration stored in chrome.storage.local
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({
@@ -152,22 +175,30 @@ chrome.webRequest.onHeadersReceived.addListener(
         const videoId = match[1];
         const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
         
-        const stream = {
-          url: watchUrl,
-          title: `Embedded YouTube Video (${videoId})`,
-          type: 'YouTube',
-          thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-          platform: 'YouTube',
-          referer: details.initiator || '',
-          tabId: details.tabId,
-          size: '',
-          timestamp: Date.now()
-        };
-
         if (!recentStreams.some(existing => existing.url === watchUrl)) {
+          // Add a placeholder immediately so the user sees something right away
+          const stream = {
+            url: watchUrl,
+            title: `YouTube Video (${videoId})`,
+            type: 'YouTube',
+            thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+            platform: 'YouTube',
+            referer: details.initiator || '',
+            tabId: details.tabId,
+            size: '',
+            timestamp: Date.now()
+          };
           console.log(`[Sniffer] Detected Embedded YouTube: ${watchUrl}`);
           recentStreams.unshift(stream);
           if (recentStreams.length > 100) recentStreams.pop();
+
+          // Resolve the real title asynchronously from oEmbed
+          fetchOEmbedInfo(watchUrl, 'YouTube').then(info => {
+            if (info && info.title) {
+              stream.title = info.title;
+              if (info.thumbnail) stream.thumbnail = info.thumbnail;
+            }
+          });
         }
       }
     }
@@ -179,22 +210,29 @@ chrome.webRequest.onHeadersReceived.addListener(
         const videoId = match[1];
         const watchUrl = `https://vimeo.com/${videoId}`;
         
-        const stream = {
-          url: watchUrl,
-          title: `Embedded Vimeo Video (${videoId})`,
-          type: 'Vimeo',
-          thumbnail: '',
-          platform: 'Vimeo',
-          referer: details.initiator || '',
-          tabId: details.tabId,
-          size: '',
-          timestamp: Date.now()
-        };
-
         if (!recentStreams.some(existing => existing.url === watchUrl)) {
+          const stream = {
+            url: watchUrl,
+            title: `Vimeo Video (${videoId})`,
+            type: 'Vimeo',
+            thumbnail: '',
+            platform: 'Vimeo',
+            referer: details.initiator || '',
+            tabId: details.tabId,
+            size: '',
+            timestamp: Date.now()
+          };
           console.log(`[Sniffer] Detected Embedded Vimeo: ${watchUrl}`);
           recentStreams.unshift(stream);
           if (recentStreams.length > 100) recentStreams.pop();
+
+          // Resolve the real title asynchronously from oEmbed
+          fetchOEmbedInfo(watchUrl, 'Vimeo').then(info => {
+            if (info && info.title) {
+              stream.title = info.title;
+              if (info.thumbnail) stream.thumbnail = info.thumbnail;
+            }
+          });
         }
       }
     }
@@ -216,14 +254,16 @@ chrome.webRequest.onHeadersReceived.addListener(
     if (ctHeader) {
       const ct = ctHeader.value.toLowerCase();
       
-      // Ignore HLS .ts fragments (typically video/mp2t MIME type or ends in .ts with size < 5MB)
+      // Ignore HLS .ts fragments (typically video/mp2t MIME type or ends in .ts with size < 1MB)
       if (ct.includes('video/mp2t') || ct.includes('video/mp2s')) {
-        const isSmallTs = !clHeader || size < 5 * 1024 * 1024;
+        const tsSize = clHeader ? parseInt(clHeader.value) : NaN;
+        const isSmallTs = isNaN(tsSize) || tsSize < 1 * 1024 * 1024;
         if (isSmallTs) return;
       }
 
       if (url.includes('.ts') || url.includes('.ts?')) {
-        const isSmallTs = !clHeader || size < 5 * 1024 * 1024;
+        const tsSize = clHeader ? parseInt(clHeader.value) : NaN;
+        const isSmallTs = isNaN(tsSize) || tsSize < 1 * 1024 * 1024;
         if (isSmallTs) return;
       }
 

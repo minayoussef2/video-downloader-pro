@@ -12,6 +12,7 @@ public class QueueManager
 {
     private readonly ConcurrentDictionary<string, (DownloadItem Item, YtDlpWrapper Wrapper)> _activeDownloads = new();
     private readonly ConcurrentDictionary<string, bool> _reservedPaths = new(System.StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, DateTime> _lastProgressUpdate = new();
     private readonly SemaphoreSlim _concurrencySemaphore;
     private readonly CancellationTokenSource _cts = new();
     private int _maxConcurrent;
@@ -79,17 +80,37 @@ public class QueueManager
                 settings.ConcurrentFragments,
                 onProgress: (percent, speed, eta, statusText, fragments) =>
                 {
-                    item.Progress = percent;
-                    item.Speed = speed;
-                    item.Eta = eta;
-                    item.StatusText = statusText;
-                    item.Fragments = fragments;
-                    OnProgressUpdated?.Invoke(item, percent, statusText);
+                    var now = DateTime.UtcNow;
+                    bool shouldUpdate = false;
+                    if (percent >= 100 || percent <= 0)
+                    {
+                        shouldUpdate = true;
+                    }
+                    else
+                    {
+                        _lastProgressUpdate.TryGetValue(item.Id, out var lastUpdate);
+                        if ((now - lastUpdate).TotalMilliseconds >= 250)
+                        {
+                            shouldUpdate = true;
+                            _lastProgressUpdate[item.Id] = now;
+                        }
+                    }
+
+                    if (shouldUpdate)
+                    {
+                        item.Progress = percent;
+                        item.Speed = speed;
+                        item.Eta = eta;
+                        item.StatusText = statusText;
+                        item.Fragments = fragments;
+                        OnProgressUpdated?.Invoke(item, percent, statusText);
+                    }
                 },
                 referer: referer
             );
 
             _activeDownloads.TryRemove(item.Id, out _);
+            _lastProgressUpdate.TryRemove(item.Id, out _);
 
             if (result == "success")
             {
@@ -130,6 +151,8 @@ public class QueueManager
             {
                 _reservedPaths.TryRemove(reservedPath, out _);
             }
+            _activeDownloads.TryRemove(item.Id, out _);
+            _lastProgressUpdate.TryRemove(item.Id, out _);
             _concurrencySemaphore.Release();
         }
     }

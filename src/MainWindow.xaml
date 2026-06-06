@@ -28,15 +28,26 @@
                 <StackPanel DockPanel.Dock="Top" Margin="20,24,20,20">
                     <TextBlock Text="⬇ Video Downloader" FontSize="16" FontWeight="Bold"
                                Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Pro v3.0" FontSize="11" Foreground="{StaticResource AccentBlueBrush}" Margin="0,2,0,0"/>
+                    <TextBlock Text="Pro v1.0" FontSize="11" Foreground="{StaticResource AccentBlueBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="12,0,12,16">
                     <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,0,0,12"/>
                     <TextBlock Text="Extension Server" FontSize="10" Foreground="{StaticResource TextMutedBrush}" Margin="8,0"/>
                     <StackPanel Orientation="Horizontal" Margin="8,4,0,0">
-                        <Ellipse Width="8" Height="8" Fill="{StaticResource AccentGreenBrush}" Margin="0,0,6,0"/>
-                        <TextBlock Text="Running on :18888" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <Ellipse Width="8" Height="8" Margin="0,0,6,0">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource AccentRedBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsServerRunning}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ServerStatusText}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -503,28 +514,25 @@
             </ScrollViewer>
 
             <!-- ═══ STATUS BAR ═══ -->
-            <Border Grid.Row="1" Background="{StaticResource BgSecondaryBrush}" Padding="16,8"
-                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Border Grid.Row="1" Background="{StaticResource BgSecondaryBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16,8">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="3*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                    <ProgressBar Grid.Column="1" Style="{StaticResource ModernProgress}" Value="{Binding OverallProgress}"
-                                 Margin="16,0,0,0" Height="6"/>
-                </Grid>
-            </Border>
-            <!-- ═══ STATUS BAR ═══ -->
-            <Border Grid.Row="1" Background="{StaticResource BgSecondaryBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="24,10">
-                <Grid>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Total Estimated Size:" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,8,0"/>
-                        <TextBlock Text="{Binding TotalSizeSum}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                    </StackPanel>
                     
-                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="Active Downloads:" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,8,0"/>
+                    <!-- Left side: Status Text -->
+                    <TextBlock Grid.Column="0" Text="{Binding StatusText}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    
+                    <!-- Center: Overall progress bar -->
+                    <ProgressBar Grid.Column="1" Style="{StaticResource ModernProgress}" Value="{Binding OverallProgress}" Margin="16,0" Height="6" VerticalAlignment="Center"/>
+                    
+                    <!-- Right side: Total size and Queue Count -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Total Size: " FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
+                        <TextBlock Text="{Binding TotalSizeSum}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,16,0"/>
+                        <TextBlock Text="Active: " FontSize="11" Foreground="{StaticResource TextMutedBrush}"/>
                         <TextBlock Text="{Binding QueueCount}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                     </StackPanel>
                 </Grid>

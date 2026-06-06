@@ -60,6 +60,9 @@ public class MainViewModel : ViewModelBase
     private AppStats? _stats;
     public AppStats? Stats { get => _stats; set => SetField(ref _stats, value); }
 
+    public bool IsServerRunning => _extensionServer.IsRunning;
+    public string ServerStatusText => IsServerRunning ? "Running on :18888" : "Server Error (Port Bind Failed)";
+
     // Quality options for comboboxes
     public List<string> QualityOptions { get; } = new()
     {
@@ -156,6 +159,8 @@ public class MainViewModel : ViewModelBase
     {
         // Start extension server
         await _extensionServer.StartAsync();
+        OnPropertyChanged(nameof(IsServerRunning));
+        OnPropertyChanged(nameof(ServerStatusText));
 
         // Auto-install extension if enabled
         if (Settings.AutoInstallExtension)
@@ -326,6 +331,14 @@ public class MainViewModel : ViewModelBase
     private async Task DownloadAllAsync(object? _)
     {
         StatusText = $"Downloading {DownloadQueue.Count} item(s)…";
+        foreach (var item in DownloadQueue)
+        {
+            if (item.Status is DownloadStatus.Ready or DownloadStatus.Failed or DownloadStatus.Cancelled)
+            {
+                item.Status = DownloadStatus.Queued;
+                item.StatusText = "Queued...";
+            }
+        }
         _queueManager.SetMaxConcurrent(Settings.MaxConcurrentDownloads);
         await _queueManager.DownloadAllAsync(DownloadQueue);
         UpdateOverallProgress();
@@ -334,6 +347,14 @@ public class MainViewModel : ViewModelBase
     private async Task HlsDownloadAllAsync(object? _)
     {
         StatusText = $"Downloading {HlsQueue.Count} HLS item(s)…";
+        foreach (var item in HlsQueue)
+        {
+            if (item.Status is DownloadStatus.Ready or DownloadStatus.Failed or DownloadStatus.Cancelled)
+            {
+                item.Status = DownloadStatus.Queued;
+                item.StatusText = "Queued...";
+            }
+        }
         _queueManager.SetMaxConcurrent(Settings.MaxConcurrentDownloads);
         await _queueManager.DownloadAllAsync(HlsQueue, referer: HlsReferer);
         UpdateOverallProgress();
@@ -344,6 +365,9 @@ public class MainViewModel : ViewModelBase
         if (param is not DownloadItem item) return;
         _queueManager.SetMaxConcurrent(Settings.MaxConcurrentDownloads);
         StatusText = $"Downloading: {item.Title}";
+
+        item.Status = DownloadStatus.Queued;
+        item.StatusText = "Queued...";
 
         var referer = HlsQueue.Contains(item) ? item.Referer : null;
         if (string.IsNullOrEmpty(referer) && HlsQueue.Contains(item)) referer = HlsReferer;
@@ -405,6 +429,9 @@ public class MainViewModel : ViewModelBase
     {
         if (param is DownloadItem item)
         {
+            item.Status = DownloadStatus.Cancelled;
+            item.StatusText = "🚫 Cancelled";
+            item.Progress = 0;
             _queueManager.CancelItem(item.Id);
             System.Windows.Input.CommandManager.InvalidateRequerySuggested();
         }

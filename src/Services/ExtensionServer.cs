@@ -105,6 +105,14 @@ public class ExtensionServer : IDisposable
                     responseBody = JsonConvert.SerializeObject(new { status = "running", version = "1.0.0" });
                     break;
 
+                case "/settings":
+                    var settings = SettingsService.Instance.Settings;
+                    responseBody = JsonConvert.SerializeObject(new { 
+                        defaultQuality = settings.DefaultQuality, 
+                        defaultFormat = settings.DefaultFormat 
+                    });
+                    break;
+
                 case "/download":
                 case "/queue":
                     if (request.HttpMethod == "POST")

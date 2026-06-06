@@ -47,6 +47,8 @@ public partial class App : System.Windows.Application
         {
             mainWindow.WindowState = WindowState.Minimized;
             mainWindow.ShowInTaskbar = false;
+            mainWindow.Show();
+            mainWindow.Hide();
         }
         else
         {
