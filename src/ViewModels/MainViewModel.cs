@@ -61,7 +61,7 @@ public class MainViewModel : ViewModelBase
     public AppStats? Stats { get => _stats; set => SetField(ref _stats, value); }
 
     public bool IsServerRunning => _extensionServer.IsRunning;
-    public string ServerStatusText => IsServerRunning ? "Running on :18888" : "Server Error (Port Bind Failed)";
+    public string ServerStatusText => IsServerRunning ? $"Running on :{_extensionServer.ActualPort}" : "Server Error (Port Bind Failed)";
 
     // Quality options for comboboxes
     public List<string> QualityOptions { get; } = new()
@@ -92,6 +92,9 @@ public class MainViewModel : ViewModelBase
     public ICommand ClearHistoryCommand { get; }
     public ICommand RefreshHistoryCommand { get; }
     public ICommand RefreshStatsCommand { get; }
+    public ICommand ToggleRenameCommand { get; }
+    public ICommand CommitRenameCommand { get; }
+    public ICommand CancelRenameCommand { get; }
 
     public MainViewModel()
     {
@@ -149,6 +152,9 @@ public class MainViewModel : ViewModelBase
         ClearHistoryCommand = new RelayCommand(ClearHistory);
         RefreshHistoryCommand = new RelayCommand(_ => RefreshHistory());
         RefreshStatsCommand = new RelayCommand(_ => RefreshStats());
+        ToggleRenameCommand = new RelayCommand(ToggleRename);
+        CommitRenameCommand = new RelayCommand(CommitRename);
+        CancelRenameCommand = new RelayCommand(CancelRename);
 
         // Load history/stats
         RefreshHistory();
@@ -449,6 +455,36 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    private void ToggleRename(object? param)
+    {
+        if (param is DownloadItem item)
+        {
+            item.OriginalTitle = item.Title;
+            item.IsRenamingActive = true;
+        }
+    }
+
+    private void CommitRename(object? param)
+    {
+        if (param is DownloadItem item)
+        {
+            if (string.IsNullOrWhiteSpace(item.Title))
+            {
+                item.Title = item.OriginalTitle;
+            }
+            item.IsRenamingActive = false;
+        }
+    }
+
+    private void CancelRename(object? param)
+    {
+        if (param is DownloadItem item)
+        {
+            item.Title = item.OriginalTitle;
+            item.IsRenamingActive = false;
+        }
+    }
+
     private void PauseAll(object? _) => _queueManager.PauseAll();
     private void CancelAll(object? _) => _queueManager.CancelAll();
 
@@ -587,7 +623,7 @@ public class MainViewModel : ViewModelBase
 
     private void OnExtensionDownloadRequest(string url, string quality, string action, string type, string referer, string title, string thumbnail)
     {
-        System.Windows.Application.Current?.Dispatcher.Invoke(async () =>
+        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
             // Robust HLS/DASH/Direct detection
             string urlLower = url.ToLower();
@@ -595,11 +631,13 @@ public class MainViewModel : ViewModelBase
                          urlLower.Contains(".m3u8") || urlLower.Contains(".mpd") || urlLower.Contains(".isml") ||
                          urlLower.Contains("manifest") || urlLower.Contains("playlist");
 
+            bool isYouTube = urlLower.Contains("youtube.com") || urlLower.Contains("youtu.be");
+
             var item = new DownloadItem
             {
                 Url = url,
                 Referer = referer,
-                Title = (string.IsNullOrWhiteSpace(title) || title == "Analyzing...") ? "Detecting Video..." : title,
+                Title = (isYouTube || string.IsNullOrWhiteSpace(title) || title == "Analyzing...") ? "Detecting Video..." : title,
                 SelectedQuality = quality,
                 SelectedFormat = isHls ? GlobalHlsFormat : GlobalFormat,
                 Source = DownloadSource.Extension,
@@ -629,7 +667,7 @@ public class MainViewModel : ViewModelBase
                     var json = JObject.Parse(infoJson);
                     System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                     {
-                        if (item.Title == "Analyzing..." || string.IsNullOrWhiteSpace(item.Title) || item.Title == "Detecting Video...")
+                        if (item.Title == "Analyzing..." || string.IsNullOrWhiteSpace(item.Title) || item.Title == "Detecting Video..." || isYouTube)
                             item.Title = json["title"]?.ToString() ?? "Unknown";
                             
                         item.ThumbnailUrl = json["thumbnail"]?.ToString() ?? "";
@@ -656,6 +694,14 @@ public class MainViewModel : ViewModelBase
                         item.StatusText = "Ready to download";
                         OnPropertyChanged(nameof(TotalSizeSum));
                         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+
+                        if (action == "download")
+                        {
+                            if (DownloadItemCommand.CanExecute(item))
+                            {
+                                DownloadItemCommand.Execute(item);
+                            }
+                        }
                     });
                 }
                 catch (Exception ex)
@@ -668,22 +714,24 @@ public class MainViewModel : ViewModelBase
 
                     System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                     {
+                        if (isYouTube && item.Title == "Detecting Video..." && !string.IsNullOrWhiteSpace(title))
+                        {
+                            item.Title = title;
+                        }
                         item.Status = DownloadStatus.Ready;
                         item.StatusText = "Ready (info unavailable)";
                         System.Windows.Input.CommandManager.InvalidateRequerySuggested();
+
+                        if (action == "download")
+                        {
+                            if (DownloadItemCommand.CanExecute(item))
+                            {
+                                DownloadItemCommand.Execute(item);
+                            }
+                        }
                     });
                 }
             });
-
-            // If action is "download", start immediately
-            if (action == "download")
-            {
-                await Task.Delay(500); // Brief delay for info fetch
-                if (DownloadItemCommand.CanExecute(item))
-                {
-                    DownloadItemCommand.Execute(item);
-                }
-            }
 
             // Navigate to appropriate tab
             SelectedTab = isHls ? "HLS" : "Downloads";

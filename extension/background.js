@@ -1,6 +1,13 @@
 // Background service worker - Video Downloader Pro v1.0.0
-const APP_URL = 'http://127.0.0.1:18888';
+let appPort = 18888;
 const recentStreams = [];
+
+// Fetch stored appPort on startup
+chrome.storage.local.get('appPort', (data) => {
+  if (data && data.appPort) {
+    appPort = data.appPort;
+  }
+});
 
 // Fetch real title/thumbnail from oEmbed APIs for YouTube and Vimeo
 async function fetchOEmbedInfo(watchUrl, platform) {
@@ -35,18 +42,28 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-// Check if desktop app is running
+// Check if desktop app is running, probing ports 18888–18892 if necessary
 async function checkAppStatus() {
-  const urls = [
-    'http://localhost:18888/status',
-    'http://127.0.0.1:18888/status'
-  ];
+  // Try currently cached port first
+  try {
+    const res = await fetch(`http://127.0.0.1:${appPort}/status`, { method: 'GET', mode: 'cors' });
+    const data = await res.json();
+    if (data && data.status === 'running') {
+      return true;
+    }
+  } catch (err) {}
 
-  for (const url of urls) {
+  // Probe ports 18888 to 18892
+  for (let port = 18888; port <= 18892; port++) {
     try {
-      const res = await fetch(url, { method: 'GET', mode: 'cors' });
+      const res = await fetch(`http://127.0.0.1:${port}/status`, { method: 'GET', mode: 'cors' });
       const data = await res.json();
-      if (data.status === 'running') return true;
+      if (data && data.status === 'running') {
+        appPort = port;
+        await chrome.storage.local.set({ appPort });
+        console.log(`[Background] Found app running on port ${port}`);
+        return true;
+      }
     } catch (err) {}
   }
   return false;
@@ -55,8 +72,10 @@ async function checkAppStatus() {
 // Send download request to desktop app
 async function sendToApp(url, quality, action, type, referer, title, thumbnail) {
   try {
+    // Ensure we run the probe to find/confirm the port
+    await checkAppStatus();
     const endpoint = action === 'download' ? '/download' : '/queue';
-    const res = await fetch(`${APP_URL}${endpoint}`, {
+    const res = await fetch(`http://127.0.0.1:${appPort}${endpoint}`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',

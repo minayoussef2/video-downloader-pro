@@ -14,6 +14,7 @@ public class ExtensionServer : IDisposable
     private HttpListener? _listener;
     private CancellationTokenSource? _cts;
     private readonly int _port;
+    private int _actualPort;
     private bool _isRunning;
 
     /// <summary>
@@ -23,10 +24,12 @@ public class ExtensionServer : IDisposable
     public event Action<string, string, string, string, string, string, string>? OnDownloadRequest;
 
     public bool IsRunning => _isRunning;
+    public int ActualPort => _actualPort;
 
     public ExtensionServer(int port = 18888)
     {
         _port = port;
+        _actualPort = port;
     }
 
     public async Task StartAsync()
@@ -34,24 +37,35 @@ public class ExtensionServer : IDisposable
         if (_isRunning) return;
 
         _cts = new CancellationTokenSource();
-        _listener = new HttpListener();
-        
-        try
-        {
-            // Try 127.0.0.1 first as it's more reliable for extension communication
-            _listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
-            _listener.Prefixes.Add($"http://localhost:{_port}/");
-            
-            _listener.Start();
-            _isRunning = true;
-            System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Extension server started on port {_port}\n");
+        int startPort = _port;
 
-            _ = Task.Run(() => ListenLoop(_cts.Token));
-        }
-        catch (Exception ex)
+        for (int i = 0; i < 5; i++)
         {
-            System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] ERROR starting server: {ex.Message}\n");
-            _isRunning = false;
+            int currentPort = startPort + i;
+            _listener = new HttpListener();
+            try
+            {
+                // Bind only to 127.0.0.1 to avoid dual-binding/localhost IPv6 conflicts
+                _listener.Prefixes.Add($"http://127.0.0.1:{currentPort}/");
+                _listener.Start();
+                _actualPort = currentPort;
+                _isRunning = true;
+                System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Extension server started on port {_actualPort}\n");
+
+                _ = Task.Run(() => ListenLoop(_cts.Token));
+                return;
+            }
+            catch (Exception ex)
+            {
+                System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Port {currentPort} bind failed: {ex.Message}\n");
+                try { _listener.Close(); } catch { }
+                _listener = null;
+                if (i == 4)
+                {
+                    System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] ERROR: All fallback ports 18888-18892 failed.\n");
+                    _isRunning = false;
+                }
+            }
         }
     }
 

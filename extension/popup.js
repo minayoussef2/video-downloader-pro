@@ -51,33 +51,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 1. Direct App Connection Status Monitoring
   async function checkAppDirectly() {
+    const result = await chrome.storage.local.get('appPort');
+    let port = result.appPort || 18888;
+    let running = false;
+
+    // Test currently cached port
     try {
-      const res = await fetch('http://localhost:18888/status');
+      const res = await fetch(`http://127.0.0.1:${port}/status`);
       const data = await res.json();
-      isAppRunning = data && data.status === 'running';
-    } catch (err) {
-      try {
-        const res = await fetch('http://127.0.0.1:18888/status');
-        const data = await res.json();
-        isAppRunning = data && data.status === 'running';
-      } catch (err2) {
-        isAppRunning = false;
+      running = data && data.status === 'running';
+    } catch (err) {}
+
+    // Probe fallback ports if needed
+    if (!running) {
+      for (let p = 18888; p <= 18892; p++) {
+        try {
+          const res = await fetch(`http://127.0.0.1:${p}/status`);
+          const data = await res.json();
+          if (data && data.status === 'running') {
+            port = p;
+            running = true;
+            await chrome.storage.local.set({ appPort: p });
+            break;
+          }
+        } catch (err) {}
       }
     }
 
+    isAppRunning = running;
+
     if (isAppRunning) {
-      statusEl.textContent = 'App Connected';
+      statusEl.textContent = `App Connected (:${port})`;
       statusEl.className = 'status-badge online';
       offlineError.style.display = 'none';
-      document.querySelectorAll('.btn-action, .btn-batch').forEach(btn => {
-        if (!btn.hasAttribute('data-disabled')) btn.removeAttribute('disabled');
+      document.querySelectorAll('.btn-action.primary, .btn-action.secondary, .btn-batch').forEach(btn => {
+        if (!btn.hasAttribute('data-disabled')) {
+          btn.removeAttribute('disabled');
+          btn.removeAttribute('title');
+        }
       });
     } else {
       statusEl.textContent = 'App Offline';
       statusEl.className = 'status-badge';
       offlineError.style.display = 'block';
-      document.querySelectorAll('.btn-action, .btn-batch').forEach(btn => {
+      document.querySelectorAll('.btn-action.primary, .btn-action.secondary, .btn-batch').forEach(btn => {
         btn.setAttribute('disabled', 'true');
+        btn.setAttribute('title', 'Start the desktop app to download');
       });
     }
   }
@@ -87,17 +106,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Sync default quality preference from the desktop app settings
   async function fetchAppSettings() {
-    const urls = ['http://127.0.0.1:18888/settings', 'http://localhost:18888/settings'];
-    for (const url of urls) {
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data && data.defaultQuality) {
-          defaultQuality = data.defaultQuality;
-        }
-        return;
-      } catch {}
-    }
+    const result = await chrome.storage.local.get('appPort');
+    const port = result.appPort || 18888;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/settings`);
+      const data = await res.json();
+      if (data && data.defaultQuality) {
+        defaultQuality = data.defaultQuality;
+      }
+    } catch {}
   }
   fetchAppSettings();
 

@@ -60,6 +60,12 @@ public class DownloadItem : INotifyPropertyChanged
     public double SizeMb { get => _sizeMb; set => SetField(ref _sizeMb, value); }
     public string Fragments { get => _fragments; set => SetField(ref _fragments, value); }
 
+    private bool _isRenamingActive;
+    private string _originalTitle = string.Empty;
+
+    public bool IsRenamingActive { get => _isRenamingActive; set => SetField(ref _isRenamingActive, value); }
+    public string OriginalTitle { get => _originalTitle; set => SetField(ref _originalTitle, value); }
+
     // Format size map: quality -> estimated bytes
     public Dictionary<string, long> FormatSizes { get; set; } = new();
 

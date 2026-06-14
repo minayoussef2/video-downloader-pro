@@ -182,11 +182,50 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                                       Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            
+                                            <!-- Standard Mode (not renaming) -->
+                                            <Grid Grid.Column="0" Visibility="{Binding IsRenamingActive, Converter={StaticResource InvBoolToVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1" Style="{StaticResource BtnGhost}" Content="✏" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.ToggleRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}" Padding="4,2" FontSize="11"/>
+                                            </Grid>
+
+                                            <!-- Rename Mode (active renaming) -->
+                                            <Grid Grid.Column="0" Visibility="{Binding IsRenamingActive, Converter={StaticResource BoolToVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox Grid.Column="0" Style="{StaticResource InputBox}" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                                         FontSize="12" Padding="4,2" VerticalAlignment="Center">
+                                                    <TextBox.InputBindings>
+                                                        <KeyBinding Key="Enter" 
+                                                                    Command="{Binding DataContext.CommitRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                                    CommandParameter="{Binding}"/>
+                                                        <KeyBinding Key="Escape" 
+                                                                    Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                                    CommandParameter="{Binding}"/>
+                                                    </TextBox.InputBindings>
+                                                </TextBox>
+                                                <Button Grid.Column="1" Style="{StaticResource BtnPrimary}" Content="✔" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.CommitRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}" Padding="6,2" FontSize="11"/>
+                                                <Button Grid.Column="2" Style="{StaticResource BtnDanger}" Content="✕" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}" Padding="6,2" FontSize="11"/>
+                                            </Grid>
+                                            
                                             <Button Grid.Column="1" Style="{StaticResource BtnGhost}" Content="✕" Padding="6,2"
                                                     Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}" FontSize="11"/>
+                                                    CommandParameter="{Binding}" FontSize="11" VerticalAlignment="Center"/>
                                         </Grid>
 
                                         <!-- Meta -->
@@ -313,15 +352,54 @@
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
-                                        <Grid>
+                                        <!-- Title + Remove -->
+                                        <Grid Grid.Column="0" Grid.ColumnSpan="2">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            
+                                            <!-- Standard Mode (not renaming) -->
+                                            <Grid Grid.Column="0" Visibility="{Binding IsRenamingActive, Converter={StaticResource InvBoolToVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="1" Style="{StaticResource BtnGhost}" Content="✏" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.ToggleRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}" Padding="4,2" FontSize="11"/>
+                                            </Grid>
+
+                                            <!-- Rename Mode (active renaming) -->
+                                            <Grid Grid.Column="0" Visibility="{Binding IsRenamingActive, Converter={StaticResource BoolToVis}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox Grid.Column="0" Style="{StaticResource InputBox}" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                                                         FontSize="12" Padding="4,2" VerticalAlignment="Center">
+                                                    <TextBox.InputBindings>
+                                                        <KeyBinding Key="Enter" 
+                                                                    Command="{Binding DataContext.CommitRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                                    CommandParameter="{Binding}"/>
+                                                        <KeyBinding Key="Escape" 
+                                                                    Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                                    CommandParameter="{Binding}"/>
+                                                    </TextBox.InputBindings>
+                                                </TextBox>
+                                                <Button Grid.Column="1" Style="{StaticResource BtnPrimary}" Content="✔" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.CommitRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}" Padding="6,2" FontSize="11"/>
+                                                <Button Grid.Column="2" Style="{StaticResource BtnDanger}" Content="✕" Margin="4,0,0,0" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.CancelRenameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}" Padding="6,2" FontSize="11"/>
+                                            </Grid>
+                                            
                                             <Button Grid.Column="1" Style="{StaticResource BtnGhost}" Content="✕" Padding="6,2"
                                                     Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}" FontSize="11"/>
+                                                    CommandParameter="{Binding}" FontSize="11" VerticalAlignment="Center"/>
                                         </Grid>
 
                                         <!-- Options Row -->
