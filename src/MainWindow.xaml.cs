@@ -49,12 +49,16 @@ public partial class MainWindow : Window
             _trayIcon.Icon = System.Drawing.SystemIcons.Application;
         }
 
-        _trayIcon.DoubleClick += (_, _) =>
+        // Single left-click on the tray icon restores the main window
+        _trayIcon.MouseClick += (_, args) =>
         {
-            Show();
-            WindowState = WindowState.Normal;
-            ShowInTaskbar = true;
-            Activate();
+            if (args.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                ShowInTaskbar = true;
+                Activate();
+            }
         };
 
         var menu = new System.Windows.Forms.ContextMenuStrip();

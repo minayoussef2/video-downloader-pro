@@ -208,7 +208,7 @@ public class MainViewModel : ViewModelBase
         if (urls.Count == 0) return;
 
         IsAnalyzing = true;
-        StatusText = $"Analyzing {urls.Count} HLS URL(s)…";
+        StatusText = $"Analyzing {urls.Count} Stream URL(s)…";
 
         foreach (var url in urls)
         {
@@ -217,7 +217,7 @@ public class MainViewModel : ViewModelBase
 
         HlsUrlInput = "";
         IsAnalyzing = false;
-        StatusText = $"HLS Queue: {HlsQueue.Count} item(s)";
+        StatusText = $"Streams Queue: {HlsQueue.Count} item(s)";
         OnPropertyChanged(nameof(TotalSizeSum));
     }
 
