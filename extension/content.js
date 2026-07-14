@@ -43,6 +43,33 @@
     }
   }, { capture: true });
 
+  // Extract video URLs nested inside other URL parameters (e.g. ?url=https://...)
+  function extractNestedVideoUrl(src) {
+    if (!src) return null;
+    try {
+      const urlObj = new URL(src);
+      
+      // 1. Check if the URL itself is a video platform watch URL
+      const urlLower = src.toLowerCase();
+      if (urlLower.includes('youtube.com/watch') || urlLower.includes('youtu.be/')) {
+        return src;
+      }
+      
+      // 2. Scan all query string parameters
+      for (const [key, value] of urlObj.searchParams.entries()) {
+        if (value.startsWith('http://') || value.startsWith('https://')) {
+          const valLower = value.toLowerCase();
+          if (valLower.includes('youtube.com/watch') || valLower.includes('youtube.com/embed') || 
+              valLower.includes('youtu.be/') || valLower.includes('vimeo.com') || 
+              valLower.includes('dailymotion.com') || valLower.includes('rumble.com')) {
+            return value;
+          }
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
   function detectVideos() {
     const videos = [];
     const pageUrl = window.location.href;
@@ -115,17 +142,56 @@
       }
     });
 
-    // 3. Scan Embedded Iframes (YouTube, Vimeo, Vdocipher, Bunny Stream, etc.)
+    // 3. Scan Embedded Iframes (YouTube, Vimeo, Vdocipher, Bunny Stream, Dailymotion, Rumble, Bilibili)
     document.querySelectorAll('iframe').forEach(iframe => {
       try {
         const src = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('data-lazy-src');
         if (src) {
+          // Check for nested video URLs first (e.g. ?url=https://www.youtube.com/watch?v=...)
+          const nestedUrl = extractNestedVideoUrl(src);
+          if (nestedUrl) {
+            const platform = getPlatformName(nestedUrl);
+            let title = `Embedded Video (${platform})`;
+            let thumbnail = '';
+            let type = platform;
+            
+            if (platform === 'YouTube') {
+              const match = nestedUrl.match(/(?:v=|embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+              if (match) {
+                const videoId = match[1];
+                thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                title = `Embedded YouTube Video (${videoId})`;
+              }
+            } else if (platform === 'Vimeo') {
+              const match = nestedUrl.match(/(?:vimeo\.com\/|video\/)([0-9]+)/);
+              if (match) {
+                const videoId = match[1];
+                title = `Embedded Vimeo Video (${videoId})`;
+              }
+            }
+            
+            if (!DETECTED_VIDEOS.has(nestedUrl)) {
+              DETECTED_VIDEOS.set(nestedUrl, true);
+              videos.push({
+                url: nestedUrl,
+                title: title,
+                thumbnail: thumbnail,
+                type: type,
+                platform: platform
+              });
+            }
+            return;
+          }
+
           const isYouTube = src.includes('youtube.com/embed/') || src.includes('youtube-nocookie.com/embed/');
           const isVimeo = src.includes('player.vimeo.com/video/');
           const isVdocipher = src.includes('player.vdocipher.com/v2/');
           const isBunny = src.includes('mediadelivery.net/embed/') || src.includes('iframe.mediadelivery.net');
+          const isDailymotion = src.includes('dailymotion.com/embed/');
+          const isRumble = src.includes('rumble.com/embed/');
+          const isBilibili = src.includes('player.bilibili.com');
           
-          if (isYouTube || isVimeo || isVdocipher || isBunny) {
+          if (isYouTube || isVimeo || isVdocipher || isBunny || isDailymotion || isRumble || isBilibili) {
             let targetUrl = src;
             let title = `Embedded Frame Video (${getPlatformName(src)})`;
             let thumbnail = '';
@@ -148,6 +214,24 @@
                 title = `Embedded Vimeo Video (${videoId})`;
                 type = 'Vimeo';
               }
+            } else if (isDailymotion) {
+              const match = src.match(/\/embed\/video\/([a-zA-Z0-9]+)/);
+              if (match) {
+                const videoId = match[1];
+                targetUrl = `https://www.dailymotion.com/video/${videoId}`;
+                title = `Embedded Dailymotion Video (${videoId})`;
+                type = 'Dailymotion';
+              }
+            } else if (isRumble) {
+              const match = src.match(/\/embed\/([a-zA-Z0-9]+)/);
+              if (match) {
+                const videoId = match[1];
+                title = `Embedded Rumble Video (${videoId})`;
+                type = 'Rumble';
+              }
+            } else if (isBilibili) {
+              title = 'Embedded Bilibili Video';
+              type = 'Bilibili';
             }
 
             if (!DETECTED_VIDEOS.has(targetUrl)) {
@@ -177,6 +261,9 @@
     if (url.includes('vimeo.com')) return 'Vimeo';
     if (url.includes('twitch.tv')) return 'Twitch';
     if (url.includes('reddit.com')) return 'Reddit';
+    if (url.includes('dailymotion.com')) return 'Dailymotion';
+    if (url.includes('rumble.com')) return 'Rumble';
+    if (url.includes('bilibili.com')) return 'Bilibili';
     return 'Website';
   }
 

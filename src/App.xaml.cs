@@ -47,8 +47,9 @@ public partial class App : System.Windows.Application
         {
             mainWindow.WindowState = WindowState.Minimized;
             mainWindow.ShowInTaskbar = false;
-            mainWindow.Show();
-            mainWindow.Hide();
+            // Force HWND creation without showing/rendering the window to prevent GDI/quota crash on Windows startup
+            var helper = new System.Windows.Interop.WindowInteropHelper(mainWindow);
+            helper.EnsureHandle();
         }
         else
         {

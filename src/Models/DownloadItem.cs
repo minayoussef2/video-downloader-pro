@@ -22,7 +22,7 @@ public class DownloadItem : INotifyPropertyChanged
     private string _statusText = "Queued";
     private DownloadStatus _status = DownloadStatus.Queued;
     private DownloadSource _source = DownloadSource.App;
-    private List<string> _availableQualities = new() { "Best", "1080p", "720p", "480p", "360p", "Audio Only" };
+    private List<string> _availableQualities = new() { "Best", "8K (4320p)", "4K (2160p)", "2K (1440p)", "1080p", "720p", "480p", "360p", "240p", "144p", "Audio Only" };
     private string _filePath = string.Empty;
     private double _sizeMb;
     private string _fragments = "";

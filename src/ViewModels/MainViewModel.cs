@@ -109,6 +109,14 @@ public class MainViewModel : ViewModelBase
         // Extension server - Forcing 18888 to resolve stubborn port issues
         _extensionServer = new ExtensionServer(18888);
         _extensionServer.OnDownloadRequest += OnExtensionDownloadRequest;
+        _extensionServer.OnServerStarted += () =>
+        {
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                OnPropertyChanged(nameof(IsServerRunning));
+                OnPropertyChanged(nameof(ServerStatusText));
+            });
+        };
 
         // Wire up queue manager events
         _queueManager.OnProgressUpdated += (item, pct, text) =>

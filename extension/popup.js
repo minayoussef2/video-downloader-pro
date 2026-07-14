@@ -282,7 +282,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const item = document.createElement('div');
       item.className = 'video-item';
       
-      const isDash = vid.type === 'DASH';
       const badgeClass = vid.type.toLowerCase();
       const typeBadge = `<span class="badge ${badgeClass}">${vid.type}</span>`;
       
@@ -316,19 +315,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="details-row"><strong>Origin Referer:</strong> ${vid.referer || 'Current Tab'}</div>
           
           <div class="action-controls">
-            <select id="quality-${idx}" ${isDash ? 'disabled' : ''}>
+            <select id="quality-${idx}">
               ${buildQualityOptions(defaultQuality)}
             </select>
           </div>
           
           <div class="action-controls" style="margin-top: 8px;">
-            ${isDash ? 
-              `<button class="btn-action primary" disabled style="width: 100%; opacity: 0.5;" data-disabled="true">DRM Protected (DASH)</button>` 
-            : 
-              `<button class="btn-action secondary" id="btn-q-${idx}">+ Queue</button>
-               <button class="btn-action primary" id="btn-dl-${idx}">Download</button>
-               <button class="btn-action copy" id="btn-copy-${idx}" title="Copy URL">📋</button>`
-            }
+              <button class="btn-action secondary" id="btn-q-${idx}">+ Queue</button>
+              <button class="btn-action primary" id="btn-dl-${idx}">Download</button>
+              <button class="btn-action copy" id="btn-copy-${idx}" title="Copy URL">📋</button>
           </div>
           <div id="msg-${idx}" class="msg-feedback"></div>
         </div>
@@ -349,17 +344,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
 
-      if (!isDash) {
-        document.getElementById(`btn-q-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'queue', vid.type, vid.referer, vid.title, vid.thumbnail));
-        document.getElementById(`btn-dl-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'download', vid.type, vid.referer, vid.title, vid.thumbnail));
-        document.getElementById(`btn-copy-${idx}`).addEventListener('click', () => {
-          navigator.clipboard.writeText(vid.url);
-          const msg = document.getElementById(`msg-${idx}`);
-          msg.textContent = 'URL Copied to clipboard!';
-          msg.className = 'msg-feedback success';
-          setTimeout(() => msg.textContent = '', 2000);
-        });
-      }
+      document.getElementById(`btn-q-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'queue', vid.type, vid.referer, vid.title, vid.thumbnail));
+      document.getElementById(`btn-dl-${idx}`).addEventListener('click', () => sendAction(vid.url, idx, 'download', vid.type, vid.referer, vid.title, vid.thumbnail));
+      document.getElementById(`btn-copy-${idx}`).addEventListener('click', () => {
+        navigator.clipboard.writeText(vid.url);
+        const msg = document.getElementById(`msg-${idx}`);
+        msg.textContent = 'URL Copied to clipboard!';
+        msg.className = 'msg-feedback success';
+        setTimeout(() => msg.textContent = '', 2000);
+      });
     });
   }
 
@@ -396,8 +389,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function runBatch(action) {
     if (!isAppRunning) return;
     
-    // Filter down to non-DRM streams (exclude DASH)
-    const downloadable = discoveredVideos.filter(vid => vid.type !== 'DASH');
+    // All stream types are now downloadable (including DASH/MPD)
+    const downloadable = [...discoveredVideos];
     if (downloadable.length === 0) return;
 
     let successCount = 0;

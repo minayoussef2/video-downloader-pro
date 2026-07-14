@@ -23,6 +23,9 @@ public class ExtensionServer : IDisposable
     /// </summary>
     public event Action<string, string, string, string, string, string, string>? OnDownloadRequest;
 
+    public event Action? OnServerStarted;
+    private bool _isRetrying;
+
     public bool IsRunning => _isRunning;
     public int ActualPort => _actualPort;
 
@@ -37,29 +40,47 @@ public class ExtensionServer : IDisposable
         if (_isRunning) return;
 
         _cts = new CancellationTokenSource();
-        int startPort = _port;
 
+        // Try to bind immediately
+        if (TryBind())
+        {
+            return;
+        }
+
+        // If it fails, start a background retry loop
+        if (!_isRetrying)
+        {
+            _isRetrying = true;
+            _ = Task.Run(() => RetryBindLoop(_cts.Token));
+        }
+    }
+
+    private bool TryBind()
+    {
+        int startPort = _port;
         for (int i = 0; i < 5; i++)
         {
             int currentPort = startPort + i;
-            _listener = new HttpListener();
+            var listener = new HttpListener();
             try
             {
                 // Bind only to 127.0.0.1 to avoid dual-binding/localhost IPv6 conflicts
-                _listener.Prefixes.Add($"http://127.0.0.1:{currentPort}/");
-                _listener.Start();
+                listener.Prefixes.Add($"http://127.0.0.1:{currentPort}/");
+                listener.Start();
+                _listener = listener;
                 _actualPort = currentPort;
                 _isRunning = true;
+                _isRetrying = false;
                 System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Extension server started on port {_actualPort}\n");
 
-                _ = Task.Run(() => ListenLoop(_cts.Token));
-                return;
+                _ = Task.Run(() => ListenLoop(_cts!.Token));
+                OnServerStarted?.Invoke();
+                return true;
             }
             catch (Exception ex)
             {
                 System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Port {currentPort} bind failed: {ex.Message}\n");
-                try { _listener.Close(); } catch { }
-                _listener = null;
+                try { listener.Close(); } catch { }
                 if (i == 4)
                 {
                     System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] ERROR: All fallback ports 18888-18892 failed.\n");
@@ -67,6 +88,32 @@ public class ExtensionServer : IDisposable
                 }
             }
         }
+        return false;
+    }
+
+    private async Task RetryBindLoop(CancellationToken ct)
+    {
+        System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Starting background retry loop for port binding...\n");
+        while (!ct.IsCancellationRequested && !_isRunning)
+        {
+            try
+            {
+                await Task.Delay(5000, ct);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+
+            if (ct.IsCancellationRequested) break;
+
+            if (TryBind())
+            {
+                System.IO.File.AppendAllText("server_log.txt", $"[{DateTime.Now}] Extension server successfully started during retry on port {_actualPort}\n");
+                break;
+            }
+        }
+        _isRetrying = false;
     }
 
     private async Task ListenLoop(CancellationToken ct)

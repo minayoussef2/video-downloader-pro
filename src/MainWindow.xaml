@@ -55,7 +55,7 @@
                 <StackPanel Margin="0,8,0,0">
                     <Button Style="{StaticResource NavBtn}" Content="▶  Downloads"
                             Command="{Binding NavigateCommand}" CommandParameter="Downloads"/>
-                    <Button Style="{StaticResource NavBtn}" Content="🔗  HLS Downloader"
+                    <Button Style="{StaticResource NavBtn}" Content="📡  HLS / MPD Streams"
                             Command="{Binding NavigateCommand}" CommandParameter="HLS"/>
                     <Border Height="1" Background="{StaticResource BorderBrush}" Margin="16,8"/>
                     <Button Style="{StaticResource NavBtn}" Content="🕓  History"
@@ -292,7 +292,7 @@
                 </ScrollViewer>
             </Grid>
 
-            <!-- HLS Tab (similar structure) -->
+            <!-- HLS / MPD Streams Tab -->
             <Grid Visibility="{Binding SelectedTab, Converter={StaticResource BoolToVis}, ConverterParameter=HLS}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -300,13 +300,13 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <StackPanel Margin="24,20,24,8">
-                    <TextBlock Text="🔗 HLS / M3U8 Downloader" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="📡 HLS / MPD / M3U8 Streams" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
                 </StackPanel>
                 <Border Grid.Row="1" Background="{StaticResource BgCardBrush}" CornerRadius="12" Margin="24,4,24,8" Padding="16">
                     <StackPanel>
                         <TextBlock Text="Referer URL:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                         <TextBox Style="{StaticResource InputBox}" Text="{Binding HlsReferer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
-                        <TextBlock Text="M3U8 URLs (one per line):" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="M3U8 / MPD URLs (one per line):" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                         <TextBox Style="{StaticResource InputBox}" Text="{Binding HlsUrlInput, UpdateSourceTrigger=PropertyChanged}"
                                  AcceptsReturn="True" Height="60" TextWrapping="Wrap"/>
                         
