@@ -372,6 +372,15 @@ public class YtDlpWrapper
         args.Add("--no-playlist");
         args.Add("--newline"); // Output progress on new lines for parsing
 
+        // FIX: Force generic extractor and standard browser headers if we suspect AWS/DASH links
+        if (url.Contains(".mpd") || url.Contains("index.mpd") || url.Contains("aws"))
+        {
+            args.Add("--force-generic-extractor");
+        }
+        
+        // Always inject a standard desktop User-Agent to bypass CloudFront/AWS blocks
+        args.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"");
+
         // Referer for HLS/CDN
         if (!string.IsNullOrWhiteSpace(referer))
             args.Add($"--referer \"{referer}\"");
