@@ -1,0 +1,146 @@
+<Window x:Class="VideoDownloaderPro.Views.ExtensionGuideWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Browser Extension Installation Guide" Height="580" Width="680"
+        WindowStartupLocation="CenterScreen"
+        Background="#0A0A0F" Foreground="#F3F4F6"
+        ResizeMode="NoResize" Icon="pack://application:,,,/icon.ico">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgCardBrush" Color="#161622"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#2A2A3C"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F3F4F6"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#6366F1"/>
+        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#6366F1" Offset="0"/>
+            <GradientStop Color="#8B5CF6" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="🧩 Extension Installation Guide" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+            <TextBlock Text="Follow these simple steps to enable automatic video interception in your browser:" 
+                       FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Browser Tabs / Content -->
+        <Border Grid.Row="1" Background="{StaticResource BgCardBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
+            <TabControl Background="Transparent" BorderThickness="0">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="HeaderTemplate">
+                            <Setter.Value>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" FontSize="13" FontWeight="SemiBold" Padding="12,6" Foreground="#D1D5DB"/>
+                                </DataTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.Resources>
+
+                <!-- Chrome -->
+                <TabItem Header="🌐 Google Chrome">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Step 1: Open Extensions Page" FontWeight="Bold" FontSize="14" Foreground="#818CF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Open Chrome and navigate to chrome://extensions in your address bar." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 2: Enable Developer Mode" FontWeight="Bold" FontSize="14" Foreground="#818CF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Toggle on the Developer mode switch located in the top-right corner of the page." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 3: Load Unpacked Extension" FontWeight="Bold" FontSize="14" Foreground="#818CF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Click Load unpacked button in top-left, then select the extension folder of Video Downloader Pro." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 4: Pin Extension" FontWeight="Bold" FontSize="14" Foreground="#818CF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Click the puzzle piece icon next to your address bar and pin Video Downloader Pro for quick access." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Edge -->
+                <TabItem Header="🌊 Microsoft Edge">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Step 1: Open Edge Extensions" FontWeight="Bold" FontSize="14" Foreground="#38BDF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Open Microsoft Edge and navigate to edge://extensions in the address bar." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 2: Turn on Developer Mode" FontWeight="Bold" FontSize="14" Foreground="#38BDF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Enable Developer mode from the left sidebar navigation menu." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 3: Load Unpacked" FontWeight="Bold" FontSize="14" Foreground="#38BDF8" Margin="0,0,0,4"/>
+                            <TextBlock Text="Click Load unpacked button and select the extension folder." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Brave -->
+                <TabItem Header="🦁 Brave Browser">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Step 1: Open Brave Extensions" FontWeight="Bold" FontSize="14" Foreground="#FB923C" Margin="0,0,0,4"/>
+                            <TextBlock Text="Open Brave and navigate to brave://extensions in your address bar." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 2: Enable Developer Mode" FontWeight="Bold" FontSize="14" Foreground="#FB923C" Margin="0,0,0,4"/>
+                            <TextBlock Text="Toggle on Developer mode in the upper right-hand corner." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 3: Load Unpacked" FontWeight="Bold" FontSize="14" Foreground="#FB923C" Margin="0,0,0,4"/>
+                            <TextBlock Text="Click Load unpacked and select the Video Downloader Pro extension folder." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Opera -->
+                <TabItem Header="🔴 Opera Browser">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Step 1: Open Opera Extensions" FontWeight="Bold" FontSize="14" Foreground="#F87171" Margin="0,0,0,4"/>
+                            <TextBlock Text="Open Opera and navigate to opera://extensions in your address bar." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 2: Enable Developer Mode" FontWeight="Bold" FontSize="14" Foreground="#F87171" Margin="0,0,0,4"/>
+                            <TextBlock Text="Turn on Developer mode in the top right corner." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                            <TextBlock Text="Step 3: Load Unpacked" FontWeight="Bold" FontSize="14" Foreground="#F87171" Margin="0,0,0,4"/>
+                            <TextBlock Text="Click Load unpacked button and select the extension folder." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <!-- Bottom Action Bar -->
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="📁 Open Extension Folder" Click="OpenFolder_Click"
+                    Padding="12,8" FontSize="12" FontWeight="SemiBold"
+                    Background="#1E1E2E" Foreground="#818CF8" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                    Cursor="Hand"/>
+
+            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                <Button Content="OK" Click="Ok_Click" Margin="0,0,8,0"
+                        Padding="16,8" FontSize="12" FontWeight="SemiBold"
+                        Background="#1E1E2E" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        Cursor="Hand"/>
+
+                <Button Content="OK &amp; Don't show again" Click="DontShowAgain_Click"
+                        Padding="16,8" FontSize="12" FontWeight="Bold"
+                        Background="{StaticResource AccentGradient}" Foreground="White" BorderThickness="0"
+                        Cursor="Hand"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

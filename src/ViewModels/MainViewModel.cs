@@ -95,6 +95,9 @@ public class MainViewModel : ViewModelBase
     public ICommand ToggleRenameCommand { get; }
     public ICommand CommitRenameCommand { get; }
     public ICommand CancelRenameCommand { get; }
+    public ICommand OpenExtensionFolderCommand { get; }
+    public ICommand ShowExtensionGuideCommand { get; }
+    public ICommand ShowErrorDetailsCommand { get; }
 
     public MainViewModel()
     {
@@ -163,6 +166,9 @@ public class MainViewModel : ViewModelBase
         ToggleRenameCommand = new RelayCommand(ToggleRename);
         CommitRenameCommand = new RelayCommand(CommitRename);
         CancelRenameCommand = new RelayCommand(CancelRename);
+        OpenExtensionFolderCommand = new RelayCommand(_ => OpenExtensionFolder());
+        ShowExtensionGuideCommand = new RelayCommand(_ => ShowExtensionGuide());
+        ShowErrorDetailsCommand = new RelayCommand(ShowErrorDetails);
 
         // Load history/stats
         RefreshHistory();
@@ -180,6 +186,12 @@ public class MainViewModel : ViewModelBase
         if (Settings.AutoInstallExtension)
         {
             _ = Task.Run(() => ExtensionInstaller.EnsureInstalled());
+        }
+
+        // Prompt extension guide on first launch
+        if (!Settings.HasShownExtensionGuide)
+        {
+            System.Windows.Application.Current?.Dispatcher.Invoke(ShowExtensionGuide);
         }
     }
 
@@ -880,5 +892,57 @@ public class MainViewModel : ViewModelBase
     {
         _queueManager.CancelAll();
         _extensionServer.Dispose();
+    }
+
+    private void ShowExtensionGuide()
+    {
+        var win = new VideoDownloaderPro.Views.ExtensionGuideWindow();
+        win.Owner = System.Windows.Application.Current?.MainWindow;
+        win.ShowDialog();
+    }
+
+    private void OpenExtensionFolder()
+    {
+        try
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var extPath = Path.Combine(baseDir, "extension");
+            if (!Directory.Exists(extPath))
+            {
+                var parent = Directory.GetParent(baseDir)?.Parent?.Parent?.Parent?.FullName;
+                if (parent != null)
+                {
+                    var projExt = Path.Combine(parent, "extension");
+                    if (Directory.Exists(projExt)) extPath = projExt;
+                }
+            }
+
+            if (Directory.Exists(extPath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = extPath,
+                    UseShellExecute = true
+                });
+            }
+            else
+            {
+                System.Windows.MessageBox.Show($"Extension folder not found at:\n{extPath}", "Folder Not Found", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Could not open extension folder: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ShowErrorDetails(object? parameter)
+    {
+        if (parameter is DownloadItem item)
+        {
+            var win = new VideoDownloaderPro.Views.ErrorDetailsWindow(item.ErrorDetails);
+            win.Owner = System.Windows.Application.Current?.MainWindow;
+            win.ShowDialog();
+        }
     }
 }

@@ -14,4 +14,5 @@ public class AppSettings
     public bool MinimizeToTray { get; set; } = true;
     public bool AutoInstallExtension { get; set; } = true;
     public int ExtensionServerPort { get; set; } = 18888;
+    public bool HasShownExtensionGuide { get; set; } = false;
 }

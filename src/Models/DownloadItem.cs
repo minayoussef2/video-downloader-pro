@@ -62,9 +62,11 @@ public class DownloadItem : INotifyPropertyChanged
 
     private bool _isRenamingActive;
     private string _originalTitle = string.Empty;
+    private string _errorDetails = string.Empty;
 
     public bool IsRenamingActive { get => _isRenamingActive; set => SetField(ref _isRenamingActive, value); }
     public string OriginalTitle { get => _originalTitle; set => SetField(ref _originalTitle, value); }
+    public string ErrorDetails { get => _errorDetails; set => SetField(ref _errorDetails, value); }
 
     // Format size map: quality -> estimated bytes
     public Dictionary<string, long> FormatSizes { get; set; } = new();

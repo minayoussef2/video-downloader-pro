@@ -15,6 +15,9 @@ public class YtDlpWrapper
     private bool _isPaused;
     private readonly ManualResetEventSlim _pauseEvent = new(true);
 
+    // Standard desktop User-Agent to bypass CloudFront, AWS, and CDN security headers
+    private const string DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
     // Quality → yt-dlp format string mapping
     private static readonly Dictionary<string, int> HeightMap = new()
     {
@@ -117,7 +120,14 @@ public class YtDlpWrapper
             "--dump-json",
             "--no-download",
             "--no-warnings",
+            $"--user-agent \"{DefaultUserAgent}\""
         };
+
+        // If it's a raw manifest (MPD) or AWS URL, force generic extractor handling
+        if (url.Contains(".mpd") || url.Contains("index.mpd") || url.Contains("aws"))
+        {
+            args.Add("--force-generic-extractor");
+        }
 
         if (flatPlaylist)
         {
@@ -135,7 +145,7 @@ public class YtDlpWrapper
         var psi = new ProcessStartInfo
         {
             FileName = ytdlp,
-            Arguments = string.Join(" ", args), // Args are already quoted correctly in the list
+            Arguments = string.Join(" ", args),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -171,11 +181,13 @@ public class YtDlpWrapper
         var ytdlp = FindYtDlp();
 
         var refererArg = string.IsNullOrWhiteSpace(referer) ? "" : $"--referer \"{referer}\" ";
+        var genericArg = (url.Contains(".mpd") || url.Contains("index.mpd") || url.Contains("aws")) ? "--force-generic-extractor " : "";
+        var userAgentArg = $"--user-agent \"{DefaultUserAgent}\" ";
 
         var psi = new ProcessStartInfo
         {
             FileName = ytdlp,
-            Arguments = $"--dump-json --no-download --no-warnings {refererArg}\"{url}\"",
+            Arguments = $"--dump-json --no-download --no-warnings {genericArg}{userAgentArg}{refererArg}\"{url}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -372,14 +384,14 @@ public class YtDlpWrapper
         args.Add("--no-playlist");
         args.Add("--newline"); // Output progress on new lines for parsing
 
-        // FIX: Force generic extractor and standard browser headers if we suspect AWS/DASH links
+        // Force the generic extractor on manifest/S3 streams
         if (url.Contains(".mpd") || url.Contains("index.mpd") || url.Contains("aws"))
         {
             args.Add("--force-generic-extractor");
         }
-        
-        // Always inject a standard desktop User-Agent to bypass CloudFront/AWS blocks
-        args.Add("--user-agent \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"");
+
+        // Emulate typical desktop browser
+        args.Add($"--user-agent \"{DefaultUserAgent}\"");
 
         // Referer for HLS/CDN
         if (!string.IsNullOrWhiteSpace(referer))

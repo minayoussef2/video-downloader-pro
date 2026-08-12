@@ -140,6 +140,7 @@ public class QueueManager
             else
             {
                 item.Status = DownloadStatus.Failed;
+                item.ErrorDetails = result;
                 item.StatusText = $"❌ {result[..Math.Min(result.Length, 100)]}";
             }
 

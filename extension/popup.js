@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleSiteActive = document.getElementById('toggle-site-active');
   const siteDomainLabel = document.getElementById('site-domain-label');
   const exclusionContainer = document.getElementById('exclusion-container');
+  const selectPreferredQuality = document.getElementById('select-preferred-quality');
   
   // Batch action elements
   const batchRow = document.getElementById('batch-row');
@@ -25,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeTabId = null;
   let activeTabUrl = '';
   let discoveredVideos = [];
-  let defaultQuality = 'Best'; // Will be synced from desktop app
+  let defaultQuality = 'Best'; // Will be synced from desktop app or local preference
 
   // All quality options matching the desktop app
   const QUALITY_OPTIONS = [
@@ -104,19 +105,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   checkAppDirectly();
   setInterval(checkAppDirectly, 5000);
 
-  // Sync default quality preference from the desktop app settings
-  async function fetchAppSettings() {
-    const result = await chrome.storage.local.get('appPort');
-    const port = result.appPort || 18888;
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/settings`);
-      const data = await res.json();
-      if (data && data.defaultQuality) {
-        defaultQuality = data.defaultQuality;
-      }
-    } catch {}
+  // Sync default quality preference from local storage or desktop app settings
+  async function initQualityPreferences() {
+    // 1. Check local preferred quality first
+    const prefData = await chrome.storage.local.get('preferredQuality');
+    if (prefData && prefData.preferredQuality) {
+      defaultQuality = prefData.preferredQuality;
+    } else {
+      // 2. Fallback to desktop app setting
+      const result = await chrome.storage.local.get('appPort');
+      const port = result.appPort || 18888;
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/settings`);
+        const data = await res.json();
+        if (data && data.defaultQuality) {
+          defaultQuality = data.defaultQuality;
+        }
+      } catch {}
+    }
+
+    if (selectPreferredQuality) {
+      selectPreferredQuality.innerHTML = buildQualityOptions(defaultQuality);
+      selectPreferredQuality.value = defaultQuality;
+      selectPreferredQuality.addEventListener('change', () => {
+        defaultQuality = selectPreferredQuality.value;
+        chrome.storage.local.set({ preferredQuality: defaultQuality });
+      });
+    }
   }
-  fetchAppSettings();
+  initQualityPreferences();
 
   // 2. Navigation Tab Handlers
   tabStreamsBtn.addEventListener('click', () => {

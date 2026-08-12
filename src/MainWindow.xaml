@@ -258,6 +258,10 @@
                                                     <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
                                                     <TextBlock Text="{Binding Fragments, StringFormat='  •  Frags: {0}'}" FontSize="11" Foreground="{StaticResource AccentBlueBrush}" 
                                                                Visibility="{Binding Fragments, Converter={StaticResource StringToVis}}"/>
+                                                    <Button Style="{StaticResource BtnDanger}" Content="⚠️ Error Details" Margin="8,0,0,0" Padding="6,2" FontSize="10"
+                                                            Visibility="{Binding ErrorDetails, Converter={StaticResource StringToVis}}"
+                                                            Command="{Binding DataContext.ShowErrorDetailsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
                                                 </StackPanel>
                                                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                                                     <Button Style="{StaticResource BtnPrimary}" Content="⬇ Download" Padding="12,5" FontSize="11"
@@ -416,7 +420,13 @@
                                         <ProgressBar Grid.Row="2" Style="{StaticResource ModernProgress}" Value="{Binding Progress}" Margin="0,4,0,6" Height="4"/>
 
                                         <Grid Grid.Row="3">
-                                            <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <Button Style="{StaticResource BtnDanger}" Content="⚠️ Error Details" Margin="8,0,0,0" Padding="6,2" FontSize="10"
+                                                        Visibility="{Binding ErrorDetails, Converter={StaticResource StringToVis}}"
+                                                        Command="{Binding DataContext.ShowErrorDetailsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
                                             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                                                 <Button Style="{StaticResource BtnPrimary}" Content="⬇ Download" Padding="12,5" FontSize="11"
                                                         Command="{Binding DataContext.DownloadItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -582,6 +592,19 @@
                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
                             <CheckBox Content="Auto-install browser extension on startup" IsChecked="{Binding Settings.AutoInstallExtension}"
                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Extension Setup Guide -->
+                    <Border Background="{StaticResource BgCardBrush}" CornerRadius="12" Padding="16" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="🧩 Extension Installation Guide" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Manually load the Video Downloader Pro extension into Google Chrome, Microsoft Edge, Brave, or Opera:" FontSize="11" Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                            
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource BtnPrimary}" Content="📁 Open Extension Folder" Command="{Binding OpenExtensionFolderCommand}" Padding="12,6" FontSize="11" Margin="0,0,8,0"/>
+                                <Button Style="{StaticResource BtnGhost}" Content="📖 Show Installation Guide" Command="{Binding ShowExtensionGuideCommand}" Padding="12,6" FontSize="11"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
