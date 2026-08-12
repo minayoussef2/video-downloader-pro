@@ -1,4 +1,4 @@
-# 📥 Video Downloader Pro v3.2.0
+# 📥 Video Downloader Pro v1.0.0
 
 > A high-performance, modern video downloader & stream extractor for Windows — powered by `.NET 8 WPF` and `yt-dlp`, paired with a Manifest V3 browser extension for deep network stream sniffing and single-click browser interception.
 
@@ -55,7 +55,7 @@
 ```
 ┌────────────────────────────────────────────────────────┐
 │               Chromium Web Browser                     │
-│  (Chrome / Edge / Brave / Opera with Extension v3.2)   │
+│  (Chrome / Edge / Brave / Opera with Extension v1.0)   │
 └──────────────────────────┬─────────────────────────────┘
                            │
             Local HTTP API │ (Port Probe 18888 - 18892)
@@ -143,36 +143,35 @@ video-downloader-pro/
 │   ├── popup.html                   # Extension Popup UI
 │   ├── popup.js                     # Extension Popup logic & quality preference sync
 │   └── icons/                       # Extension icon assets (16x16, 48x48, 128x128)
-│
+
 ├── src/                             # Desktop Application Source Code (.NET 8 WPF)
-│   ├── VideoDownloaderPro.csproj    # WPF C# Project File
-│   ├── App.xaml / App.xaml.cs       # Entry point, Single-instance Mutex & ShowEvent listener
-│   ├── MainWindow.xaml / .cs        # Main Window UI, System Tray icon, Tab views
-│   │
-│   ├── Core/                        # Core Downloader Architecture
-│   │   ├── QueueManager.cs          # Concurrency semaphore, download lifecycle management
-│   │   └── YtDlpWrapper.cs          # Async Process wrapper around yt-dlp.exe & progress regex
-│   │
-│   ├── Services/                    # Services Layer
-│   │   ├── ExtensionServer.cs       # Local HttpListener server (Port 18888-18892 retry loop)
-│   │   ├── ExtensionInstaller.cs    # Registry auto-install helper
-│   │   ├── SettingsService.cs       # JSON settings persistence
-│   │   └── StatsService.cs          # Download history & bandwidth statistics manager
-│   │
-│   ├── ViewModels/                  # MVVM ViewModels
-│   │   ├── MainViewModel.cs         # Master ViewModel, Commands, Navigation, State
-│   │   └── ViewModelBase.cs       # INotifyPropertyChanged base implementation
-│   │
-│   ├── Models/                      # Data Models
-│   │   ├── DownloadItem.cs          # Item model (Url, Progress, Quality, ErrorDetails, Status)
-│   │   ├── AppSettings.cs           # User configuration model
-│   │   └── AppStats.cs              # History and download metrics model
-│   │
-│   └── Views/                       # Modal Dialogs & Windows
-│       ├── ExtensionGuideWindow.xaml# Step-by-step browser setup guide window
-│       └── ErrorDetailsWindow.xaml  # Full error log inspector & copy dialog
-│
-└── VideoDownloaderPro_v3.0.0_Setup.iss  # Inno Setup Installer Script
+    ├── VideoDownloaderPro.csproj    # WPF C# Project File
+    ├── App.xaml / App.xaml.cs       # Entry point, Single-instance Mutex & ShowEvent listener
+    ├── MainWindow.xaml / .cs        # Main Window UI, System Tray icon, Tab views
+    │
+    ├── Core/                        # Core Downloader Architecture
+    │   ├── QueueManager.cs          # Concurrency semaphore, download lifecycle management
+    │   └── YtDlpWrapper.cs          # Async Process wrapper around yt-dlp.exe & progress regex
+    │
+    ├── Services/                    # Services Layer
+    │   ├── ExtensionServer.cs       # Local HttpListener server (Port 18888-18892 retry loop)
+    │   ├── ExtensionInstaller.cs    # Registry auto-install helper
+    │   ├── SettingsService.cs       # JSON settings persistence
+    │   └── StatsService.cs          # Download history & bandwidth statistics manager
+    │
+    ├── ViewModels/                  # MVVM ViewModels
+    │   ├── MainViewModel.cs         # Master ViewModel, Commands, Navigation, State
+    │   └── ViewModelBase.cs       # INotifyPropertyChanged base implementation
+    │
+    ├── Models/                      # Data Models
+    │   ├── DownloadItem.cs          # Item model (Url, Progress, Quality, ErrorDetails, Status)
+    │   ├── AppSettings.cs           # User configuration model
+    │   └── AppStats.cs              # History and download metrics model
+    │
+    └── Views/                       # Modal Dialogs & Windows
+        ├── ExtensionGuideWindow.xaml# Step-by-step browser setup guide window
+        └── ErrorDetailsWindow.xaml  # Full error log inspector & copy dialog
+
 ```
 
 ---
